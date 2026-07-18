@@ -91,7 +91,7 @@
     <!-- 파이어베이스 설정 파일 로드 -->
     <script type="module">
         import { initializeFirebase } from './firebase-config.js';
-        import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
         const { app, db } = await initializeFirebase();
 
@@ -183,13 +183,11 @@
             
             const q = query(collection(db, "relays"), where("players", "array-contains", myName));
             
-            // 실시간으로 팀 데이터 감시
+        // 실시간으로 팀 데이터 감시
             teamUnsubscribe = onSnapshot(q, (snapshot) => {
                 let found = false;
                 snapshot.forEach((docSnap) => {
                     const teamData = docSnap.data();
-                    currentTeamData = teamData;
-                    myTeamId = docSnap.id;
                     
                     let expectedPlayer;
                     if (currentStep === 1) expectedPlayer = teamData.players[0];
@@ -201,6 +199,8 @@
                     
                     if(expectedPlayer === myName) {
                         found = true;
+                        currentTeamData = teamData;
+                        myTeamId = docSnap.id;
                         myCurrentStep = currentStep;
                         document.getElementById('submitted-badge').style.display = 'none';
                         
@@ -279,7 +279,7 @@
                 console.log("🔑 로그인 시도:", myName);
                 
                 // 기존 접속 기록이 있으면 모두 삭제 (중복 로그인 방지)
-                const existingUsers = await getDocs(query(collection(db, "active_users"), where("name", "==", myName)));
+const existingUsers = await getDocs(query(collection(db, "active_users"), where("name", "==", myName)));
                 console.log("기존 접속 기록:", existingUsers.size, "개");
                 const batch = writeBatch(db);
                 existingUsers.forEach((docSnap) => {

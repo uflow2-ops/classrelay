@@ -242,6 +242,15 @@
                 const teamId = docSnap.id;
                 const maxStep = team.max_step || 6;
                 
+                // 안전하게 turn_data 접근
+                const turnData = team.turn_data || {};
+                const draw1 = turnData.draw1 || "";
+                const guess1 = turnData.guess1 || "대기 중...";
+                const draw2 = turnData.draw2 || "";
+                const guess2 = turnData.guess2 || "대기 중...";
+                const draw3 = turnData.draw3 || "";
+                const guess3 = turnData.guess3 || "대기 중...";
+                
                 let statusBadge = team.current_step === maxStep + 1 ? '✅ 완료' : `🏃 진행중 (현재 ${team.current_step}단계)`;
                 let expectedScore = Math.max(0, 50 - (team.hints_used * 10));
                 let scoreText = team.final_score !== null ? `확정 점수: ${team.final_score}점` : `예상 점수: ${expectedScore}점 (힌트 ${team.hints_used}회 사용)`;
@@ -258,21 +267,21 @@
                 stepsHTML += `
                     <div class="step-box">
                         <div class="step-title">2. ${team.players[0]}의 그림</div>
-                        ${team.turn_data.draw1 ? `<img src="${team.turn_data.draw1}">` : '아직 그리는 중...'}
+                        ${draw1 ? `<img src="${draw1}">` : '아직 그리는 중...'}
                     </div>
                 `;
                 
                 stepsHTML += `
                     <div class="step-box">
                         <div class="step-title">3. ${team.players[1]}의 추측 (draw1 보고)</div>
-                        <div class="step-content">${team.turn_data.guess1 || '대기 중...'}</div>
+                        <div class="step-content">${guess1}</div>
                     </div>
                 `;
                 
                 stepsHTML += `
                     <div class="step-box">
                         <div class="step-title">4. ${team.players[1]}의 그림 (draw1 보고)</div>
-                        ${team.turn_data.draw2 ? `<img src="${team.turn_data.draw2}">` : '아직 그리는 중...'}
+                        ${draw2 ? `<img src="${draw2}">` : '아직 그리는 중...'}
                     </div>
                 `;
                 
@@ -280,21 +289,21 @@
                     stepsHTML += `
                         <div class="step-box">
                             <div class="step-title">5. ${team.players[2]}의 추측 (draw2 보고)</div>
-                            <div class="step-content">${team.turn_data.guess2 || '대기 중...'}</div>
+                            <div class="step-content">${guess2}</div>
                         </div>
                     `;
                     
                     stepsHTML += `
                         <div class="step-box">
                             <div class="step-title">6. ${team.players[2]}의 그림 (draw2 보고)</div>
-                            ${team.turn_data.draw3 ? `<img src="${team.turn_data.draw3}">` : '아직 그리는 중...'}
+                            ${draw3 ? `<img src="${draw3}">` : '아직 그리는 중...'}
                         </div>
                     `;
                     
                     stepsHTML += `
                         <div class="step-box">
                             <div class="step-title">7. ${team.players[3]}의 최종 정답 (draw3 보고)</div>
-                            <div class="step-content">${team.turn_data.guess3 || '대기 중...'}</div>
+                            <div class="step-content">${guess3}</div>
                         </div>
                     `;
                 }
