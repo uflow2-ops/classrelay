@@ -100,20 +100,27 @@
             console.error("❌ 대기실 감시 오류:", error);
         });
 
-        // 🧹 [새로운 기능] 대기실 초기화 (유령 학생 삭제)
+        // 🧹 [새로운 기능] 전체 초기화 (대기실 + 릴레이 기록 모두 삭제)
         window.resetWaitingRoom = async () => {
-            if(!confirm("대기실을 초기화하시겠습니까? \n(유령 학생을 포함한 모든 대기 명단이 싹 지워집니다. 아이들은 다시 '입장하기'를 눌러야 합니다!)")) return;
+            if(!confirm("⚠️ 정말로 모든 데이터를 초기화하시겠습니까?\n\n- 모든 대기 학생 기록이 삭제됩니다\n- 모든 릴레이 게임 기록이 삭제됩니다\n- 아이들은 다시 '입장하기'를 눌러야 합니다\n\n이 작업은 되돌릴 수 없습니다!")) return;
 
             try {
                 const batch = writeBatch(db);
-                // 현재 화면에 떠있는 모든 학생 기록을 삭제하도록 설정
+                
+                // 1. 모든 활성 사용자 삭제
                 activeUsersData.forEach(user => {
                     const userRef = doc(db, "active_users", user.id);
                     batch.delete(userRef);
                 });
                 
+                // 2. 모든 릴레이 기록 삭제
+                const relaysSnapshot = await getDocs(collection(db, "relays"));
+                relaysSnapshot.forEach((docSnap) => {
+                    batch.delete(doc(db, "relays", docSnap.id));
+                });
+                
                 await batch.commit(); // 파이어베이스에 일괄 삭제 요청
-                alert("대기실이 깔끔하게 청소되었습니다!");
+                alert("✅ 모든 데이터가 초기화되었습니다!\n\n대기실과 릴레이 기록이 모두 삭제되었습니다.");
             } catch (e) {
                 console.error("초기화 오류:", e);
                 alert("초기화 중 오류가 발생했습니다.");
@@ -124,10 +131,27 @@
 
         // [2] 게임 시작 로직 (라운드 로빈 방식 - 모든 학생이 각 역할을 한 번씩)
         window.startGame = async () => {
+            console.log("🎮 게임 시작 버튼 클릭됨");
+            console.log("현재 activeUsersData:", activeUsersData);
+            
             if(activeUsersData.length < 3) return alert("최소 3명 이상의 학생이 필요합니다!");
             if(!confirm("게임을 시작하시겠습니까?")) return;
 
-            let students = activeUsersData.map(user => user.name);
+            // 최신 데이터를 다시 가져오기
+            const snapshot = await getDocs(collection(db, "active_users"));
+            const latestUsers = [];
+            snapshot.forEach((doc) => {
+                latestUsers.push({ id: doc.id, ...doc.data() });
+            });
+            
+            console.log("최신 사용자 데이터:", latestUsers);
+            
+            const waitingUsers = latestUsers.filter(user => user.status === "waiting");
+            console.log("대기 중인 사용자:", waitingUsers);
+            
+            if(waitingUsers.length < 3) return alert(`대기 중인 학생이 ${waitingUsers.length}명입니다. 최소 3명이 필요합니다!`);
+
+            let students = waitingUsers.map(user => user.name);
             
             // 학생들을 랜덤으로 섞기
             let shuffled = [...students].sort(() => Math.random() - 0.5);
@@ -157,11 +181,13 @@
                 });
             }
 
-            activeUsersData.forEach(user => {
+            // 모든 대기 중인 사용자의 상태를 "playing"으로 변경
+            waitingUsers.forEach(user => {
                 batch.update(doc(db, "active_users", user.id), { status: "playing" });
             });
 
             await batch.commit(); 
+            console.log("✅ 게임 시작 완료!");
             alert("게임이 시작되었습니다!");
         };
 
