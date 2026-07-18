@@ -252,7 +252,12 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                 if(!snapshot.exists()) return;
                 const state = snapshot.data();
                 
-                // 게임 상태가 'playing'이 아닐 경우 대기 화면으로 전환
+                // 게임 종료 신호 감지
+                if(state.status === "finished") {
+                    showWaitUI("🎉 게임이 종료되었습니다! 선생님의 화면을 확인하세요.");
+                    return;
+                }
+
                 if(state.status !== "playing") {
                     showWaitUI("⏳ 게임이 아직 시작되지 않았습니다...");
                     return;

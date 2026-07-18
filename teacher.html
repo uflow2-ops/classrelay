@@ -23,16 +23,40 @@
         .student-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; max-width: 1000px; margin: 0 auto; }
         .student-card { background: white; padding: 20px; border-radius: 10px; text-align: center; font-size: 20px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-left: 8px solid #4a90e2; }
         
-        /* 결과 확인 카드 디자인 */
+        /* 결과 확인 카드 디자인 개선 */
         #results-view { display: none; max-width: 1200px; margin: 0 auto; }
-        .result-card { background: white; margin-bottom: 20px; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .result-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; font-size: 18px; font-weight: bold; }
+        .result-card { 
+            background: white; 
+            margin-bottom: 25px; 
+            padding: 25px; 
+            border-radius: 15px; 
+            box-shadow: 0 6px 12px rgba(0,0,0,0.08); 
+            border: 1px solid #eef2f7;
+            transition: transform 0.2s;
+        }
+        .result-card:hover { transform: translateY(-3px); }
+        .result-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 20px; 
+            font-size: 1.1em; 
+            border-bottom: 2px solid #f8f9fa;
+            padding-bottom: 15px;
+        }
         
-        .relay-flow { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; text-align: center; flex-wrap: wrap; }
-        .step-box { flex: 1; min-width: 120px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; min-height: 120px; }
-        .step-box img { max-width: 100%; border-radius: 5px; border: 1px solid #ccc; background: white; margin-top: 10px; }
-        .step-title { font-size: 14px; color: #666; margin-bottom: 5px; font-weight: bold; }
-        .step-content { font-size: 22px; font-weight: bold; color: #e74c3c; margin-top: 10px; }
+        .relay-flow { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
+        .step-box { 
+            flex: 0 0 160px; 
+            background: #fdfdfd; 
+            padding: 15px; 
+            border-radius: 12px; 
+            border: 1px solid #e9ecef;
+            text-align: center;
+        }
+        .step-box img { width: 100%; border-radius: 8px; border: 1px solid #dee2e6; margin-top: 10px; }
+        .step-title { font-size: 0.85em; color: #868e96; margin-bottom: 8px; text-transform: uppercase; }
+        .step-content { font-size: 1.2em; font-weight: 700; color: #495057; }
         
         .action-buttons { text-align: right; margin-top: 15px; }
         .btn-correct { background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 18px; cursor: pointer; font-weight: bold; }
@@ -222,6 +246,99 @@
             }, 60000); // 60,000ms = 60초
         };
 
+        // 팀 카드 렌더링 로직을 함수로 분리 (유지보수 용이)
+        function renderTeamCard(team, container, rank) {
+            const teamId = team.id;
+            const maxStep = team.max_step || 6;
+            
+            // 안전하게 turn_data 접근
+            const turnData = team.turn_data || {};
+            const draw1 = turnData.draw1 || "";
+            const guess1 = turnData.guess1 || "대기 중...";
+            const draw2 = turnData.draw2 || "";
+            const guess2 = turnData.guess2 || "대기 중...";
+            const draw3 = turnData.draw3 || "";
+            const guess3 = turnData.guess3 || "대기 중...";
+            
+            let statusBadge = team.current_step === maxStep + 1 ? '✅ 완료' : `🏃 진행중 (현재 ${team.current_step}단계)`;
+            let expectedScore = Math.max(0, 50 - (team.hints_used * 10));
+            let scoreText = team.final_score !== null ? `확정 점수: ${team.final_score}점` : `예상 점수: ${expectedScore}점 (힌트 ${team.hints_used}회 사용)`;
+
+            // 단계별 박스 생성
+            let stepsHTML = '';
+            stepsHTML += `
+                <div class="step-box">
+                    <div class="step-title">1. 원래 제시어</div>
+                    <div class="step-content">${team.topic}</div>
+                </div>
+            `;
+            
+            stepsHTML += `
+                <div class="step-box">
+                    <div class="step-title">2. ${team.players[0]}의 그림</div>
+                    ${draw1 ? `<img src="${draw1}">` : '아직 그리는 중...'}
+                </div>
+            `;
+            
+            stepsHTML += `
+                <div class="step-box">
+                    <div class="step-title">3. ${team.players[1]}의 추측 (draw1 보고)</div>
+                    <div class="step-content">${guess1}</div>
+                </div>
+            `;
+            
+            stepsHTML += `
+                <div class="step-box">
+                    <div class="step-title">4. ${team.players[1]}의 그림 (draw1 보고)</div>
+                    ${draw2 ? `<img src="${draw2}">` : '아직 그리는 중...'}
+                </div>
+            `;
+            
+            if(maxStep >= 6) {
+                stepsHTML += `
+                    <div class="step-box">
+                        <div class="step-title">5. ${team.players[2]}의 추측 (draw2 보고)</div>
+                        <div class="step-content">${guess2}</div>
+                    </div>
+                `;
+                
+                stepsHTML += `
+                    <div class="step-box">
+                        <div class="step-title">6. ${team.players[2]}의 그림 (draw2 보고)</div>
+                        ${draw3 ? `<img src="${draw3}">` : '아직 그리는 중...'}
+                    </div>
+                `;
+                
+                stepsHTML += `
+                    <div class="step-box">
+                        <div class="step-title">7. ${team.players[3]}의 최종 정답 (draw3 보고)</div>
+                        <div class="step-content">${guess3}</div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML += `
+                <div class="result-card" id="card-${teamId}">
+                    <div class="result-header">
+                        <div>${rank}위 | 참여: ${team.players.join(' ➔ ')}</div>
+                        <div style="color: ${team.current_step === maxStep + 1 ? '#2ecc71' : '#e67e22'}">${statusBadge} | ${scoreText}</div>
+                    </div>
+                    
+                    <div class="relay-flow">
+                        ${stepsHTML}
+                    </div>
+
+                    ${team.current_step === maxStep + 1 && team.final_score === null ? `
+                    <div class="action-buttons" id="actions-${teamId}">
+                        <span style="margin-right:15px; font-weight:bold;">최종 정답이 제시어와 일치하나요?</span>
+                        <button class="btn-correct" onclick="gradeTeam('${teamId}', ${team.hints_used})">✅ 정답 인정! (${expectedScore}점 부여)</button>
+                        <button class="btn-wrong" onclick="gradeTeam('${teamId}', 999)">❌ 오답 (0점)</button>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
         // [3] 결과 확인 및 화면 렌더링
         window.showResults = async () => {
             document.getElementById('student-list').style.display = 'none';
@@ -230,114 +347,45 @@
             resultsView.innerHTML = '<h2 style="text-align:center;">데이터를 불러오는 중입니다...</h2>';
 
             const querySnapshot = await getDocs(collection(db, "relays"));
-            resultsView.innerHTML = ''; 
+            let teams = [];
+            querySnapshot.forEach(docSnap => teams.push({ id: docSnap.id, ...docSnap.data() }));
 
-            if(querySnapshot.empty) {
+            if(teams.length === 0) {
                 resultsView.innerHTML = '<h2 style="text-align:center;">아직 진행된 게임이 없습니다.</h2>';
                 return;
             }
 
-            querySnapshot.forEach((docSnap) => {
-                const team = docSnap.data();
-                const teamId = docSnap.id;
-                const maxStep = team.max_step || 6;
-                
-                // 안전하게 turn_data 접근
-                const turnData = team.turn_data || {};
-                const draw1 = turnData.draw1 || "";
-                const guess1 = turnData.guess1 || "대기 중...";
-                const draw2 = turnData.draw2 || "";
-                const guess2 = turnData.guess2 || "대기 중...";
-                const draw3 = turnData.draw3 || "";
-                const guess3 = turnData.guess3 || "대기 중...";
-                
-                let statusBadge = team.current_step === maxStep + 1 ? '✅ 완료' : `🏃 진행중 (현재 ${team.current_step}단계)`;
-                let expectedScore = Math.max(0, 50 - (team.hints_used * 10));
-                let scoreText = team.final_score !== null ? `확정 점수: ${team.final_score}점` : `예상 점수: ${expectedScore}점 (힌트 ${team.hints_used}회 사용)`;
+            // 1. 채점이 필요한 팀과 완료된 팀 분리
+            const pendingTeams = teams.filter(t => t.final_score === null);
+            const completedTeams = teams.filter(t => t.final_score !== null);
 
-                // 단계별 박스 생성
-                let stepsHTML = '';
-                stepsHTML += `
-                    <div class="step-box">
-                        <div class="step-title">1. 원래 제시어</div>
-                        <div class="step-content">${team.topic}</div>
-                    </div>
-                `;
-                
-                stepsHTML += `
-                    <div class="step-box">
-                        <div class="step-title">2. ${team.players[0]}의 그림</div>
-                        ${draw1 ? `<img src="${draw1}">` : '아직 그리는 중...'}
-                    </div>
-                `;
-                
-                stepsHTML += `
-                    <div class="step-box">
-                        <div class="step-title">3. ${team.players[1]}의 추측 (draw1 보고)</div>
-                        <div class="step-content">${guess1}</div>
-                    </div>
-                `;
-                
-                stepsHTML += `
-                    <div class="step-box">
-                        <div class="step-title">4. ${team.players[1]}의 그림 (draw1 보고)</div>
-                        ${draw2 ? `<img src="${draw2}">` : '아직 그리는 중...'}
-                    </div>
-                `;
-                
-                if(maxStep >= 6) {
-                    stepsHTML += `
-                        <div class="step-box">
-                            <div class="step-title">5. ${team.players[2]}의 추측 (draw2 보고)</div>
-                            <div class="step-content">${guess2}</div>
-                        </div>
-                    `;
-                    
-                    stepsHTML += `
-                        <div class="step-box">
-                            <div class="step-title">6. ${team.players[2]}의 그림 (draw2 보고)</div>
-                            ${draw3 ? `<img src="${draw3}">` : '아직 그리는 중...'}
-                        </div>
-                    `;
-                    
-                    stepsHTML += `
-                        <div class="step-box">
-                            <div class="step-title">7. ${team.players[3]}의 최종 정답 (draw3 보고)</div>
-                            <div class="step-content">${guess3}</div>
-                        </div>
-                    `;
-                }
+            // 2. 완료된 팀만 점수 순 정렬 (높은 순)
+            completedTeams.sort((a, b) => (b.final_score || 0) - (a.final_score || 0));
 
-                const cardHTML = `
-                    <div class="result-card" id="card-${teamId}">
-                        <div class="result-header">
-                            <div>참여: ${team.players.join(' ➔ ')}</div>
-                            <div style="color: ${team.current_step === maxStep + 1 ? '#2ecc71' : '#e67e22'}">${statusBadge} | ${scoreText}</div>
-                        </div>
-                        
-                        <div class="relay-flow">
-                            ${stepsHTML}
-                        </div>
+            resultsView.innerHTML = `<h2 style="text-align:center;">🏆 최종 순위표</h2>`;
 
-                        ${team.current_step === maxStep + 1 && team.final_score === null ? `
-                        <div class="action-buttons" id="actions-${teamId}">
-                            <span style="margin-right:15px; font-weight:bold;">최종 정답이 제시어와 일치하나요?</span>
-                            <button class="btn-correct" onclick="gradeTeam('${teamId}', ${expectedScore})">✅ 정답 인정! (${expectedScore}점 부여)</button>
-                            <button class="btn-wrong" onclick="gradeTeam('${teamId}', 0)">❌ 오답 (0점)</button>
-                        </div>
-                        ` : ''}
-                    </div>
-                `;
-                
-                resultsView.innerHTML += cardHTML;
-            });
+            // 3. 채점 대기 중인 팀 섹션 (상단에 우선 배치)
+            if (pendingTeams.length > 0) {
+                resultsView.innerHTML += `<h3 style="color:#e67e22;">🚨 채점이 필요한 팀 (${pendingTeams.length}팀)</h3>`;
+                pendingTeams.forEach((team, index) => renderTeamCard(team, resultsView, index + 1));
+            }
+
+            // 4. 완료된 팀 섹션
+            if (completedTeams.length > 0) {
+                resultsView.innerHTML += `<h3 style="color:#2ecc71;">✅ 채점 완료된 팀</h3>`;
+                completedTeams.forEach((team, index) => renderTeamCard(team, resultsView, index + 1));
+            }
         };
 
-        // [4] 채점 로직
-        window.gradeTeam = async (teamId, score) => {
-            if(confirm(`${score}점으로 확정하시겠습니까?`)) {
+        // [4] 채점 로직 (점수 자동 계산)
+        window.gradeTeam = async (teamId, hintsUsed) => {
+            const baseScore = 50;
+            const hintPenalty = (hintsUsed || 0) * 10;
+            const finalCalculatedScore = Math.max(0, baseScore - hintPenalty);
+
+            if(confirm(`힌트 ${hintsUsed || 0}회 사용으로, 최종 점수는 ${finalCalculatedScore}점입니다. 확정하시겠습니까?`)) {
                 try {
-                    await updateDoc(doc(db, "relays", teamId), { final_score: score });
+                    await updateDoc(doc(db, "relays", teamId), { final_score: finalCalculatedScore });
                     alert("점수가 확정되었습니다!");
                     showResults(); 
                 } catch(e) {
