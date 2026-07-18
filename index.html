@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>우리반 그림 릴레이</title>
+    <style>
+        body { font-family: '맑은 고딕', sans-serif; text-align: center; margin: 0; padding-top: 50px; background-color: #f4f4f9; }
+        .btn-primary { padding: 15px 30px; font-size: 18px; background: #4a90e2; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; font-weight: bold; }
+        .btn-submit { background:#ff6b6b; color:white; font-size:18px; padding:10px 25px; border:none; border-radius:8px; cursor: pointer; font-weight: bold; }
+        .btn-hint { background:#f1c40f; color:#333; font-size:18px; padding:10px 20px; border:none; border-radius:8px; cursor: pointer; font-weight: bold; margin-right: 10px; display: none; }
+        
+        #login-ui { margin-top: 50px; }
+        #student-name { padding: 15px; font-size: 18px; width: 250px; border: 2px solid #ccc; border-radius: 8px; }
+        
+        #game-ui, #guess-ui { display: none; position: relative; max-width: 900px; margin: 0 auto; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; }
+        .toolbar { margin-bottom: 15px; }
+        .toolbar button { padding: 10px 20px; font-size: 16px; margin: 0 5px; border: 1px solid #ccc; border-radius: 5px; background: white; cursor: pointer; font-weight: bold; }
+        #drawing-canvas { border: 3px solid #333; background: white; border-radius: 10px; touch-action: none; box-shadow: 0 4px 8px rgba(0,0,0,0.1); cursor: crosshair; }
+        #received-drawing { border: 3px solid #333; border-radius: 10px; max-width: 100%; height: auto; background: white; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        #guess-input { padding: 15px; font-size: 18px; width: 300px; border: 2px solid #ccc; border-radius: 8px; }
+        
+        /* 힌트 이미지 표시 영역 */
+        #hint-display { margin-top: 10px; display: none; }
+        #hint-display img { max-width: 300px; border: 3px dashed #ff6b6b; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. 로그인 및 대기 화면 -->
+    <div id="login-ui">
+        <h2>🎨 우리반 그림 릴레이</h2>
+        <div id="wait-content">
+            <p>자신의 이름을 입력하고 입장해주세요!</p>
+            <input type="text" id="student-name" placeholder="이름을 입력하세요">
+            <br>
+            <button class="btn-primary" onclick="login()">입장하기</button>
+        </div>
+    </div>
+
+    <!-- 2. 그림 그리기 화면 (1, 3단계) -->
+    <div id="game-ui">
+        <div class="top-bar">
+            <h3 id="welcome-msg" style="margin:0;">그림 릴레이</h3>
+            <div>
+                <button class="btn-hint" id="hint-btn-draw" onclick="useHint()">💡 힌트보기 (-10점)</button>
+                <button class="btn-submit" onclick="submitDrawing()">제출하기</button>
+            </div>
+        </div>
+        
+        <div class="toolbar">
+            <button onclick="setMode('pen')">✏️ 연필</button>
+            <button onclick="setMode('eraser')">🧽 지우개</button>
+            <button onclick="clearCanvas()">🗑️ 전체 지우기</button>
+        </div>
+        
+        <div id="hint-display"></div>
+        <canvas id="drawing-canvas" width="800" height="450"></canvas>
+    </div>
+
+    <!-- 3. 정답 맞추기 화면 (2, 4단계) -->
+    <div id="guess-ui">
+        <div class="top-bar">
+            <h3 style="margin:0;">친구가 보낸 그림입니다! 무엇일까요?</h3>
+            <div>
+                <button class="btn-hint" id="hint-btn-guess" onclick="useHint()">💡 힌트보기 (-10점)</button>
+                <button class="btn-submit" onclick="submitGuess()">정답 제출하기</button>
+            </div>
+        </div>
+        <img id="received-drawing" src="">
+        <br>
+        <input type="text" id="guess-input" placeholder="정답을 추측해보세요!">
+    </div>
+
+    <!-- 파이어베이스 설정 파일 로드 -->
+    <script type="module">
+        import { initializeFirebase } from './firebase-config.js';
+        import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        const { app, db } = await initializeFirebase();
+
+        let myName = "";
+        let myTeamId = ""; 
+        let myCurrentStep = 0; 
+        let currentTeamData = null; 
+        let myDocId = ""; // 내 접속 기록 ID를 기억할 변수
+
+        // [1. 로그인]
+        window.login = async () => {
+            const nameInput = document.getElementById('student-name').value;
+            if (!nameInput) return alert("이름을 입력하세요!");
+            myName = nameInput.trim();
+
+            try {
+                // 접속 기록 생성
+                const docRef = await addDoc(collection(db, "active_users"), { name: myName, status: "waiting" });
+                myDocId = docRef.id; // 파이어베이스가 부여한 내 번호 기억
+
+                showWaitUI(`${myName}님, 선생님이 게임을 시작할 때까지 기다려주세요! 🤫`);
+                
+                onSnapshot(doc(db, "active_users", docRef.id), (snapshot) => {
+                    if(snapshot.data() && snapshot.data().status === "playing") {
+                        listenToMyRelays(); 
+                    }
+                });
+            } catch (e) { alert("접속 실패!"); }
+        };
+
+        // ⭐️ [브라우저 창을 닫을 때 자동으로 데이터 지우기 (퇴장)]
+        window.addEventListener("beforeunload", () => {
+            if (myDocId) {
+                deleteDoc(doc(db, "active_users", myDocId));
+            }
+        });
+
+        // [2. 실시간 내 스케치북 찾기]
+        function listenToMyRelays() {
+            const q = query(collection(db, "relays"), where("players", "array-contains", myName));
+            
+            onSnapshot(q, (snapshot) => {
+                let activeTaskFound = false;
+
+                snapshot.forEach((docSnap) => {
+                    if (activeTaskFound) return; 
+
+                    const teamData = docSnap.data();
+                    const currentStep = teamData.current_step;
+                    
+                    if(teamData.players[currentStep - 1] === myName) {
+                        myTeamId = docSnap.id;
+                        myCurrentStep = currentStep;
+                        currentTeamData = teamData; // 최신 데이터 저장
+                        activeTaskFound = true;
+                        
+                        document.getElementById('hint-btn-draw').style.display = (currentStep === 3) ? 'inline-block' : 'none';
+                        document.getElementById('hint-btn-guess').style.display = (currentStep === 4) ? 'inline-block' : 'none';
+                        document.getElementById('hint-display').style.display = 'none'; 
+
+                        if(currentStep === 1) {
+                            document.getElementById('welcome-msg').innerText = `제시어: ${teamData.topic}`;
+                            showDrawUI();
+                        } else if(currentStep === 2) {
+                            document.getElementById('received-drawing').src = teamData.turn_data.draw1;
+                            showGuessUI();
+                        } else if(currentStep === 3) {
+                            document.getElementById('welcome-msg').innerText = `제시어: ${teamData.turn_data.guess1}`;
+                            showDrawUI();
+                        } else if(currentStep === 4) {
+                            document.getElementById('received-drawing').src = teamData.turn_data.draw2;
+                            showGuessUI();
+                        } else if(currentStep === 5) {
+                            showWaitUI("모든 릴레이가 끝났습니다! 선생님의 화면을 보세요 🎉");
+                            activeTaskFound = false; 
+                        }
+                    }
+                });
+
+                if(!activeTaskFound) showWaitUI("다른 친구들이 넘겨주기를 기다리고 있어요! ⏳");
+            });
+        }
+
+        // [3. 힌트 사용]
+        window.useHint = async () => {
+            if(confirm("💡 힌트를 보면 우리 팀 점수가 10점 깎입니다! 정말 보시겠습니까?")) {
+                const teamRef = doc(db, "relays", myTeamId);
+                await updateDoc(teamRef, { hints_used: increment(1) }); // 감점 기록
+
+                if(myCurrentStep === 3) {
+                    const hintDiv = document.getElementById('hint-display');
+                    hintDiv.innerHTML = `<p style="margin:5px; font-weight:bold; color:red;">🚨 1번 친구의 원본 그림입니다!</p><img src="${currentTeamData.turn_data.draw1}">`;
+                    hintDiv.style.display = 'block';
+                    document.getElementById('hint-btn-draw').style.display = 'none'; 
+                } else if (myCurrentStep === 4) {
+                    alert(`🚨 가장 처음 제시된 주제어는 [ ${currentTeamData.topic} ] 입니다!`);
+                    document.getElementById('hint-btn-guess').style.display = 'none'; 
+                }
+            }
+        };
+
+        // UI 표시 함수들
+        function showWaitUI(msg) { document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('login-ui').style.display = 'block'; document.getElementById('wait-content').innerHTML = `<h2>대기 중...</h2><p>${msg}</p>`; }
+        function showDrawUI() { document.getElementById('login-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'block'; clearCanvas(); initCanvas(); }
+        function showGuessUI() { document.getElementById('login-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'block'; document.getElementById('guess-input').value = ""; }
+
+        // [4. 제출 로직]
+        window.submitDrawing = async () => {
+            if(confirm("그림을 제출하시겠습니까?")) {
+                const dataUrl = canvas.toDataURL(); 
+                const teamRef = doc(db, "relays", myTeamId);
+                let updateData = {};
+                if(myCurrentStep === 1) { updateData = { "turn_data.draw1": dataUrl, current_step: 2 }; } 
+                else if(myCurrentStep === 3) { updateData = { "turn_data.draw2": dataUrl, current_step: 4 }; }
+                await updateDoc(teamRef, updateData);
+            }
+        };
+
+        window.submitGuess = async () => {
+            const guess = document.getElementById('guess-input').value;
+            if(!guess) return alert("정답을 입력하세요!");
+            if(confirm("정답을 제출하시겠습니까?")) {
+                const teamRef = doc(db, "relays", myTeamId);
+                let updateData = {};
+                if(myCurrentStep === 2) { updateData = { "turn_data.guess1": guess, current_step: 3 }; } 
+                else if(myCurrentStep === 4) { updateData = { "turn_data.guess2": guess, current_step: 5 }; } 
+                await updateDoc(teamRef, updateData);
+            }
+        };
+
+        // 캔버스 세팅
+        const canvas = document.getElementById('drawing-canvas');
+        const ctx = canvas.getContext('2d');
+        let painting = false;
+
+        function initCanvas() {
+            ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.strokeStyle = 'black';
+            canvas.addEventListener('mousedown', (e) => { painting = true; draw(e); });
+            canvas.addEventListener('mouseup', () => { painting = false; ctx.beginPath(); });
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseleave', () => { painting = false; ctx.beginPath(); });
+            canvas.addEventListener('touchstart', (e) => { e.preventDefault(); painting = true; const touch = e.touches[0]; const mouseEvent = new MouseEvent("mousedown", { clientX: touch.clientX, clientY: touch.clientY }); canvas.dispatchEvent(mouseEvent); }, { passive: false });
+            canvas.addEventListener('touchend', (e) => { e.preventDefault(); painting = false; ctx.beginPath(); }, { passive: false });
+            canvas.addEventListener('touchmove', (e) => { e.preventDefault(); const touch = e.touches[0]; const mouseEvent = new MouseEvent("mousemove", { clientX: touch.clientX, clientY: touch.clientY }); canvas.dispatchEvent(mouseEvent); }, { passive: false });
+        }
+
+        function draw(e) {
+            if (!painting) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+            ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
+        }
+
+        window.setMode = (mode) => { ctx.strokeStyle = (mode === 'eraser') ? 'white' : 'black'; ctx.lineWidth = (mode === 'eraser') ? 20 : 5; };
+        window.clearCanvas = () => { ctx.clearRect(0, 0, canvas.width, canvas.height); };
+    </script>
+</body>
+</html>
