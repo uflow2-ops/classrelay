@@ -95,8 +95,11 @@
             myName = nameInput.trim();
 
             try {
+                console.log("🔑 로그인 시도:", myName);
+                
                 // 기존 접속 기록이 있으면 모두 삭제 (중복 로그인 방지)
                 const existingUsers = await getDocs(query(collection(db, "active_users"), where("name", "==", myName)));
+                console.log("기존 접속 기록:", existingUsers.size, "개");
                 const batch = writeBatch(db);
                 existingUsers.forEach((docSnap) => {
                     batch.delete(doc(db, "active_users", docSnap.id));
@@ -105,6 +108,7 @@
 
                 // 새 접속 기록 생성
                 const docRef = await addDoc(collection(db, "active_users"), { name: myName, status: "waiting" });
+                console.log("✅ 접속 기록 생성 완료:", docRef.id);
                 myDocId = docRef.id; // 파이어베이스가 부여한 내 번호 기억
 
                 showWaitUI(`${myName}님, 선생님이 게임을 시작할 때까지 기다려주세요! 🤫`);
@@ -114,7 +118,10 @@
                         listenToMyRelays(); 
                     }
                 });
-            } catch (e) { alert("접속 실패!"); }
+            } catch (e) { 
+                console.error("❌ 접속 실패:", e);
+                alert("접속 실패! " + e.message); 
+            }
         };
 
         // ⭐️ [브라우저 창을 닫을 때 자동으로 데이터 지우기 (퇴장)]

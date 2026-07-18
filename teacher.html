@@ -76,14 +76,17 @@
         let activeUsersData = []; 
 
         // [1] 대기실 실시간 감시
+        console.log("🔍 대기실 감시 시작...");
         onSnapshot(collection(db, "active_users"), (snapshot) => {
+            console.log("📊 대기실 데이터 업데이트:", snapshot.size, "개 문서");
             document.getElementById('student-list').innerHTML = '';
             activeUsersData = []; 
             let count = 0;
             
-            snapshot.forEach((document) => {
-                const student = document.data();
-                activeUsersData.push({ id: document.id, ...student });
+            snapshot.forEach((doc) => {
+                const student = doc.data();
+                console.log("학생 데이터:", student);
+                activeUsersData.push({ id: doc.id, ...student });
                 
                 if(student.status === "waiting") {
                     document.getElementById('student-list').innerHTML += `<div class="student-card">${student.name}</div>`;
@@ -92,6 +95,9 @@
             });
             
             document.getElementById('student-count').innerText = `현재 대기 중인 접속자: ${count}명`;
+            console.log("대기자 수:", count);
+        }, (error) => {
+            console.error("❌ 대기실 감시 오류:", error);
         });
 
         // 🧹 [새로운 기능] 대기실 초기화 (유령 학생 삭제)
