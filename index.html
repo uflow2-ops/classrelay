@@ -171,90 +171,102 @@
         let globalStep = 0;
         let globalMaxStep = 6;
         let submittedThisRound = false; // 이번 라운드에 이미 제출했는지
+        let teamUnsubscribe = null; // 팀 실시간 감시 해제 함수
+
+        // 내가 속한 팀 찾기 + 해당 단계 UI 표시
+        function findMyTeamAndShow(currentStep, maxStep) {
+            // 기존 팀 감시 해제
+            if(teamUnsubscribe) {
+                teamUnsubscribe();
+                teamUnsubscribe = null;
+            }
+            
+            const q = query(collection(db, "relays"), where("players", "array-contains", myName));
+            
+            // 실시간으로 팀 데이터 감시
+            teamUnsubscribe = onSnapshot(q, (snapshot) => {
+                let found = false;
+                snapshot.forEach((docSnap) => {
+                    const teamData = docSnap.data();
+                    currentTeamData = teamData;
+                    myTeamId = docSnap.id;
+                    
+                    let expectedPlayer;
+                    if (currentStep === 1) expectedPlayer = teamData.players[0];
+                    else if (currentStep === 2) expectedPlayer = teamData.players[1];
+                    else if (currentStep === 3) expectedPlayer = teamData.players[1];
+                    else if (currentStep === 4) expectedPlayer = teamData.players[2];
+                    else if (currentStep === 5) expectedPlayer = teamData.players[2];
+                    else if (currentStep === 6) expectedPlayer = teamData.players[3];
+                    
+                    if(expectedPlayer === myName) {
+                        found = true;
+                        myCurrentStep = currentStep;
+                        document.getElementById('submitted-badge').style.display = 'none';
+                        
+                        document.getElementById('hint-btn-draw').style.display = (currentStep === 3 || currentStep === 5) ? 'inline-block' : 'none';
+                        document.getElementById('hint-btn-guess').style.display = (currentStep === 6) ? 'inline-block' : 'none';
+                        document.getElementById('hint-display').style.display = 'none';
+                        
+                        if(currentStep === 1) {
+                            document.getElementById('welcome-msg').innerText = `🎯 제시어: ${teamData.topic}`;
+                            document.getElementById('hint-display').style.display = 'none';
+                            document.getElementById('hint-btn-draw').style.display = 'none';
+                            showDrawUI();
+                        } else if(currentStep === 2) {
+                            document.getElementById('received-drawing').src = teamData.turn_data.draw1;
+                            showGuessUI();
+                        } else if(currentStep === 3) {
+                            document.getElementById('welcome-msg').innerText = `🎨 앞 친구의 그림을 따라 그리세요!`;
+                            const hintDiv = document.getElementById('hint-display');
+                            hintDiv.innerHTML = `<p style="margin:5px; font-weight:bold; color:#333;">📖 앞 친구가 그린 그림 참고</p><img src="${teamData.turn_data.draw1}" style="max-width:250px;">`;
+                            hintDiv.style.display = 'block';
+                            showDrawUI();
+                        } else if(currentStep === 4) {
+                            document.getElementById('received-drawing').src = teamData.turn_data.draw2;
+                            showGuessUI();
+                        } else if(currentStep === 5) {
+                            document.getElementById('welcome-msg').innerText = `🎨 앞 친구의 그림을 따라 그리세요!`;
+                            const hintDiv = document.getElementById('hint-display');
+                            hintDiv.innerHTML = `<p style="margin:5px; font-weight:bold; color:#333;">📖 앞 친구가 그린 그림 참고</p><img src="${teamData.turn_data.draw2}" style="max-width:250px;">`;
+                            hintDiv.style.display = 'block';
+                            showDrawUI();
+                        } else if(currentStep === 6) {
+                            document.getElementById('received-drawing').src = teamData.turn_data.draw3;
+                            showGuessUI();
+                        } else if(currentStep > maxStep) {
+                            showWaitUI("🎉 모든 릴레이가 끝났습니다! 선생님의 화면을 보세요 🎉");
+                        }
+                    }
+                });
+                
+                if(!found && currentStep <= maxStep) {
+                    // 내 차례가 아님 → 대기
+                    showWaitUI(`⏳ ${currentStep}단계는 내 차례가 아닙니다. 잠시만 기다려주세요...`);
+                }
+            });
+        }
 
         function listenToGameState() {
             onSnapshot(doc(db, "game_state", "current"), (snapshot) => {
                 if(!snapshot.exists()) return;
                 const state = snapshot.data();
+                
+                // 게임 상태가 'playing'이 아닐 경우 대기 화면으로 전환
                 if(state.status !== "playing") {
                     showWaitUI("⏳ 게임이 아직 시작되지 않았습니다...");
                     return;
                 }
                 
+                // 전역 변수 업데이트 및 UI 초기화
                 globalStep = state.current_step;
                 globalMaxStep = state.max_step || 6;
-                submittedThisRound = false; // 새 라운드 시작 → 제출 초기화
+                submittedThisRound = false; 
                 document.getElementById('submitted-badge').style.display = 'none';
                 
-                // 내 팀 찾아서 UI 표시
+                // 학생의 팀 정보 재조회 및 화면 표시
                 findMyTeamAndShow(globalStep, globalMaxStep);
             });
-        }
-        
-        // 내가 속한 팀 찾기 + 해당 단계 UI 표시
-        async function findMyTeamAndShow(currentStep, maxStep) {
-            const q = query(collection(db, "relays"), where("players", "array-contains", myName));
-            const snapshot = await getDocs(q);
-            
-            let found = false;
-            snapshot.forEach((docSnap) => {
-                const teamData = docSnap.data();
-                currentTeamData = teamData;
-                myTeamId = docSnap.id;
-                
-                let expectedPlayer;
-                if (currentStep === 1) expectedPlayer = teamData.players[0];
-                else if (currentStep === 2) expectedPlayer = teamData.players[1];
-                else if (currentStep === 3) expectedPlayer = teamData.players[1];
-                else if (currentStep === 4) expectedPlayer = teamData.players[2];
-                else if (currentStep === 5) expectedPlayer = teamData.players[2];
-                else if (currentStep === 6) expectedPlayer = teamData.players[3];
-                
-                if(expectedPlayer === myName) {
-                    found = true;
-                    myCurrentStep = currentStep;
-                    document.getElementById('submitted-badge').style.display = 'none';
-                    
-                    document.getElementById('hint-btn-draw').style.display = (currentStep === 3 || currentStep === 5) ? 'inline-block' : 'none';
-                    document.getElementById('hint-btn-guess').style.display = (currentStep === 6) ? 'inline-block' : 'none';
-                    document.getElementById('hint-display').style.display = 'none';
-                    
-                    if(currentStep === 1) {
-                        document.getElementById('welcome-msg').innerText = `🎯 제시어: ${teamData.topic}`;
-                        document.getElementById('hint-display').style.display = 'none';
-                        document.getElementById('hint-btn-draw').style.display = 'none';
-                        showDrawUI();
-                    } else if(currentStep === 2) {
-                        document.getElementById('received-drawing').src = teamData.turn_data.draw1;
-                        showGuessUI();
-                    } else if(currentStep === 3) {
-                        document.getElementById('welcome-msg').innerText = `🎨 앞 친구의 그림을 따라 그리세요!`;
-                        const hintDiv = document.getElementById('hint-display');
-                        hintDiv.innerHTML = `<p style="margin:5px; font-weight:bold; color:#333;">📖 앞 친구가 그린 그림 참고</p><img src="${teamData.turn_data.draw1}" style="max-width:250px;">`;
-                        hintDiv.style.display = 'block';
-                        showDrawUI();
-                    } else if(currentStep === 4) {
-                        document.getElementById('received-drawing').src = teamData.turn_data.draw2;
-                        showGuessUI();
-                    } else if(currentStep === 5) {
-                        document.getElementById('welcome-msg').innerText = `🎨 앞 친구의 그림을 따라 그리세요!`;
-                        const hintDiv = document.getElementById('hint-display');
-                        hintDiv.innerHTML = `<p style="margin:5px; font-weight:bold; color:#333;">📖 앞 친구가 그린 그림 참고</p><img src="${teamData.turn_data.draw2}" style="max-width:250px;">`;
-                        hintDiv.style.display = 'block';
-                        showDrawUI();
-                    } else if(currentStep === 6) {
-                        document.getElementById('received-drawing').src = teamData.turn_data.draw3;
-                        showGuessUI();
-                    } else if(currentStep > maxStep) {
-                        showWaitUI("🎉 모든 릴레이가 끝났습니다! 선생님의 화면을 보세요 🎉");
-                    }
-                }
-            });
-            
-            if(!found && currentStep <= maxStep) {
-                // 내 차례가 아님 → 대기
-                showWaitUI(`⏳ ${currentStep}단계는 내 차례가 아닙니다. 잠시만 기다려주세요...`);
-            }
         }
 
         // [1. 로그인]
