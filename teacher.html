@@ -28,8 +28,8 @@
         .result-card { background: white; margin-bottom: 20px; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         .result-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; font-size: 18px; font-weight: bold; }
         
-        .relay-flow { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; text-align: center; }
-        .step-box { flex: 1; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; min-height: 120px; }
+        .relay-flow { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; text-align: center; flex-wrap: wrap; }
+        .step-box { flex: 1; min-width: 120px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; min-height: 120px; }
         .step-box img { max-width: 100%; border-radius: 5px; border: 1px solid #ccc; background: white; margin-top: 10px; }
         .step-title { font-size: 14px; color: #666; margin-bottom: 5px; font-weight: bold; }
         .step-content { font-size: 22px; font-weight: bold; color: #e74c3c; margin-top: 10px; }
@@ -69,7 +69,7 @@
     <script type="module">
         import { initializeFirebase } from './firebase-config.js';
         // 맨 끝에 deleteDoc 추가
-        import { collection, onSnapshot, getDocs, writeBatch, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { collection, onSnapshot, getDocs, writeBatch, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
         const { app, db } = await initializeFirebase();
 
@@ -156,8 +156,10 @@
             // 학생들을 랜덤으로 섞기
             let shuffled = [...students].sort(() => Math.random() - 0.5);
             
-            // 학생 수에 따라 최대 단계 결정 (2명=2단계, 3명=3단계, 4명 이상=4단계)
-            let max_step = shuffled.length >= 4 ? 4 : shuffled.length;
+            // 학생 수에 따라 최대 단계 결정:
+            // 3명 = 4단계 (1:players[0]그림, 2:players[1]추측, 3:players[1]그림, 4:players[2]추측)
+            // 4명 이상 = 6단계 (1:players[0]그림, 2:players[1]추측, 3:players[1]그림, 4:players[2]추측, 5:players[2]그림, 6:players[3]추측)
+            let max_step = shuffled.length >= 4 ? 6 : 4;
             
             const batch = writeBatch(db);
 
@@ -176,7 +178,7 @@
                     current_step: 1, 
                     max_step: max_step, // 최대 단계 저장
                     hints_used: 0,
-                    turn_data: { draw1: "", guess1: "", draw2: "", guess2: "" },
+                    turn_data: { draw1: "", guess1: "", draw2: "", guess2: "", draw3: "", guess3: "" },
                     final_score: null 
                 });
             }
@@ -188,7 +190,36 @@
 
             await batch.commit(); 
             console.log("✅ 게임 시작 완료!");
-            alert("게임이 시작되었습니다!");
+            
+            // ✅ game_state 문서 생성 (60초 타이머 자동 진행)
+            let currentStep = 1;
+            await setDoc(doc(db, "game_state", "current"), {
+                status: "playing",
+                current_step: currentStep,
+                max_step: max_step
+            });
+            
+            alert(`게임이 시작되었습니다!\n\n${max_step}단계까지 진행됩니다.\n각 단계는 60초씩 자동으로 넘어갑니다.`);
+            
+            // ⏱️ 60초마다 단계 자동 전환 (선생님 브라우저에서 실행)
+            let stepTimer = setInterval(async () => {
+                currentStep++;
+                if(currentStep > max_step + 1) {
+                    clearInterval(stepTimer);
+                    await setDoc(doc(db, "game_state", "current"), {
+                        status: "finished",
+                        current_step: currentStep,
+                        max_step: max_step
+                    });
+                    alert("🎉 모든 단계가 완료되었습니다! 결과를 확인해주세요.");
+                    return;
+                }
+                await setDoc(doc(db, "game_state", "current"), {
+                    status: "playing",
+                    current_step: currentStep,
+                    max_step: max_step
+                });
+            }, 60000); // 60,000ms = 60초
         };
 
         // [3] 결과 확인 및 화면 렌더링
@@ -209,7 +240,7 @@
             querySnapshot.forEach((docSnap) => {
                 const team = docSnap.data();
                 const teamId = docSnap.id;
-                const maxStep = team.max_step || 5;
+                const maxStep = team.max_step || 6;
                 
                 let statusBadge = team.current_step === maxStep + 1 ? '✅ 완료' : `🏃 진행중 (현재 ${team.current_step}단계)`;
                 let expectedScore = Math.max(0, 50 - (team.hints_used * 10));
@@ -224,38 +255,46 @@
                     </div>
                 `;
                 
-                if(maxStep >= 2) {
-                    stepsHTML += `
-                        <div class="step-box">
-                            <div class="step-title">2. ${team.players[0]}의 그림</div>
-                            ${team.turn_data.draw1 ? `<img src="${team.turn_data.draw1}">` : '아직 그리는 중...'}
-                        </div>
-                    `;
-                }
+                stepsHTML += `
+                    <div class="step-box">
+                        <div class="step-title">2. ${team.players[0]}의 그림</div>
+                        ${team.turn_data.draw1 ? `<img src="${team.turn_data.draw1}">` : '아직 그리는 중...'}
+                    </div>
+                `;
                 
-                if(maxStep >= 3) {
-                    stepsHTML += `
-                        <div class="step-box">
-                            <div class="step-title">3. ${team.players[1]}의 추측</div>
-                            <div class="step-content">${team.turn_data.guess1 || '대기 중...'}</div>
-                        </div>
-                    `;
-                }
+                stepsHTML += `
+                    <div class="step-box">
+                        <div class="step-title">3. ${team.players[1]}의 추측 (draw1 보고)</div>
+                        <div class="step-content">${team.turn_data.guess1 || '대기 중...'}</div>
+                    </div>
+                `;
                 
-                if(maxStep >= 4) {
-                    stepsHTML += `
-                        <div class="step-box">
-                            <div class="step-title">4. ${team.players[2]}의 그림</div>
-                            ${team.turn_data.draw2 ? `<img src="${team.turn_data.draw2}">` : '아직 그리는 중...'}
-                        </div>
-                    `;
-                }
+                stepsHTML += `
+                    <div class="step-box">
+                        <div class="step-title">4. ${team.players[1]}의 그림 (draw1 보고)</div>
+                        ${team.turn_data.draw2 ? `<img src="${team.turn_data.draw2}">` : '아직 그리는 중...'}
+                    </div>
+                `;
                 
-                if(maxStep >= 5) {
+                if(maxStep >= 6) {
                     stepsHTML += `
                         <div class="step-box">
-                            <div class="step-title">5. ${team.players[3]}의 최종 정답</div>
+                            <div class="step-title">5. ${team.players[2]}의 추측 (draw2 보고)</div>
                             <div class="step-content">${team.turn_data.guess2 || '대기 중...'}</div>
+                        </div>
+                    `;
+                    
+                    stepsHTML += `
+                        <div class="step-box">
+                            <div class="step-title">6. ${team.players[2]}의 그림 (draw2 보고)</div>
+                            ${team.turn_data.draw3 ? `<img src="${team.turn_data.draw3}">` : '아직 그리는 중...'}
+                        </div>
+                    `;
+                    
+                    stepsHTML += `
+                        <div class="step-box">
+                            <div class="step-title">7. ${team.players[3]}의 최종 정답 (draw3 보고)</div>
+                            <div class="step-content">${team.turn_data.guess3 || '대기 중...'}</div>
                         </div>
                     `;
                 }
