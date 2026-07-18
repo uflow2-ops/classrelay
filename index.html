@@ -78,7 +78,7 @@
     <!-- 파이어베이스 설정 파일 로드 -->
     <script type="module">
         import { initializeFirebase } from './firebase-config.js';
-        import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
         const { app, db } = await initializeFirebase();
 
@@ -95,7 +95,15 @@
             myName = nameInput.trim();
 
             try {
-                // 접속 기록 생성
+                // 기존 접속 기록이 있으면 모두 삭제 (중복 로그인 방지)
+                const existingUsers = await getDocs(query(collection(db, "active_users"), where("name", "==", myName)));
+                const batch = writeBatch(db);
+                existingUsers.forEach((docSnap) => {
+                    batch.delete(doc(db, "active_users", docSnap.id));
+                });
+                await batch.commit();
+
+                // 새 접속 기록 생성
                 const docRef = await addDoc(collection(db, "active_users"), { name: myName, status: "waiting" });
                 myDocId = docRef.id; // 파이어베이스가 부여한 내 번호 기억
 
