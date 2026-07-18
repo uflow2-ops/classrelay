@@ -41,6 +41,14 @@
 </head>
 <body>
 
+    <div id="password-screen" style="max-width: 400px; margin: 100px auto; padding: 40px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <h2 style="text-align: center; color: #333;">🔒 교사 인증</h2>
+        <p style="text-align: center; color: #666; margin-bottom: 20px;">비밀번호를 입력하세요</p>
+        <input type="password" id="password-input" placeholder="비밀번호" style="width: 100%; padding: 15px; font-size: 18px; border: 2px solid #ccc; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box;">
+        <button onclick="checkPassword()" style="width: 100%; padding: 15px; font-size: 18px; background: #2ecc71; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">입장</button>
+    </div>
+
+    <div id="dashboard-content" style="display: none;">
     <h1>👨‍🏫 교실 라이브 현황판</h1>
     
     <div class="dashboard-controls">
@@ -219,6 +227,27 @@
                 }
             }
         };
+
+        // 비밀번호 확인
+        window.checkPassword = () => {
+            const password = document.getElementById('password-input').value;
+            if(password === "1004") {
+                document.getElementById('password-screen').style.display = 'none';
+                document.getElementById('dashboard-content').style.display = 'block';
+            } else {
+                alert("비밀번호가 틀렸습니다!");
+                document.getElementById('password-input').value = '';
+            }
+        };
+
+        // Enter 키로 비밀번호 입력
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('password-input').addEventListener('keypress', (e) => {
+                if(e.key === 'Enter') {
+                    checkPassword();
+                }
+            });
+        });
     </script>
 </body>
 </html>
