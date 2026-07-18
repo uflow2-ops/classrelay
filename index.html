@@ -135,8 +135,10 @@
                         currentTeamData = teamData; // 최신 데이터 저장
                         activeTaskFound = true;
                         
-                        document.getElementById('hint-btn-draw').style.display = (currentStep === 3) ? 'inline-block' : 'none';
-                        document.getElementById('hint-btn-guess').style.display = (currentStep === 4) ? 'inline-block' : 'none';
+                        let maxStep = teamData.max_step || 5; // 기본값은 5 (기존 4단계 게임)
+                        
+                        document.getElementById('hint-btn-draw').style.display = (currentStep === maxStep - 1) ? 'inline-block' : 'none';
+                        document.getElementById('hint-btn-guess').style.display = (currentStep === maxStep) ? 'inline-block' : 'none';
                         document.getElementById('hint-display').style.display = 'none'; 
 
                         if(currentStep === 1) {
@@ -145,13 +147,13 @@
                         } else if(currentStep === 2) {
                             document.getElementById('received-drawing').src = teamData.turn_data.draw1;
                             showGuessUI();
-                        } else if(currentStep === 3) {
+                        } else if(currentStep === 3 && maxStep >= 3) {
                             document.getElementById('welcome-msg').innerText = `제시어: ${teamData.turn_data.guess1}`;
                             showDrawUI();
-                        } else if(currentStep === 4) {
+                        } else if(currentStep === 4 && maxStep >= 4) {
                             document.getElementById('received-drawing').src = teamData.turn_data.draw2;
                             showGuessUI();
-                        } else if(currentStep === 5) {
+                        } else if(currentStep === maxStep + 1) {
                             showWaitUI("모든 릴레이가 끝났습니다! 선생님의 화면을 보세요 🎉");
                             activeTaskFound = false; 
                         }
@@ -185,14 +187,14 @@
         function showDrawUI() { document.getElementById('login-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'block'; clearCanvas(); initCanvas(); }
         function showGuessUI() { document.getElementById('login-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'block'; document.getElementById('guess-input').value = ""; }
 
-        // [4. 제출 로직]
+        // [4. 제출 로직] (동적 단계 지원)
         window.submitDrawing = async () => {
             if(confirm("그림을 제출하시겠습니까?")) {
                 const dataUrl = canvas.toDataURL(); 
                 const teamRef = doc(db, "relays", myTeamId);
                 let updateData = {};
                 if(myCurrentStep === 1) { updateData = { "turn_data.draw1": dataUrl, current_step: 2 }; } 
-                else if(myCurrentStep === 3) { updateData = { "turn_data.draw2": dataUrl, current_step: 4 }; }
+                else if(myCurrentStep === 3 && currentTeamData.max_step >= 3) { updateData = { "turn_data.draw2": dataUrl, current_step: 4 }; }
                 await updateDoc(teamRef, updateData);
             }
         };

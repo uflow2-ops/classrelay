@@ -116,24 +116,35 @@
 
         const defaultTopics = [ "사과", "달", "기차", "강아지", "우산", "비행기", "나무", "눈사람", "로봇", "케이크", "축구공", "고양이", "자동차", "선글라스", "나비" ];
 
-        // [2] 게임 시작 로직
+        // [2] 게임 시작 로직 (라운드 로빈 방식 - 모든 학생이 각 역할을 한 번씩)
         window.startGame = async () => {
-            if(activeUsersData.length < 4) return alert("최소 4명 이상의 학생이 필요합니다!");
+            if(activeUsersData.length < 3) return alert("최소 3명 이상의 학생이 필요합니다!");
             if(!confirm("게임을 시작하시겠습니까?")) return;
 
             let students = activeUsersData.map(user => user.name);
+            
+            // 학생들을 랜덤으로 섞기
+            let shuffled = [...students].sort(() => Math.random() - 0.5);
+            
+            // 학생 수에 따라 최대 단계 결정 (2명=2단계, 3명=3단계, 4명 이상=4단계)
+            let max_step = shuffled.length >= 4 ? 4 : shuffled.length;
+            
             const batch = writeBatch(db);
 
-            for (let i = 0; i < students.length; i++) {
-                const player1 = students[i];
-                let others = students.filter(name => name !== player1).sort(() => Math.random() - 0.5); 
-                const [player2, player3, player4] = others;
+            // 학생 수만큼 팀 생성 (라운드 로빈 방식)
+            // 각 학생이 1번, 2번, 3번, 4번을 정확히 한 번씩 맡음
+            for (let i = 0; i < shuffled.length; i++) {
+                let player1 = shuffled[i];
+                let player2 = shuffled[(i + 1) % shuffled.length];
+                let player3 = shuffled[(i + 2) % shuffled.length];
+                let player4 = shuffled[(i + 3) % shuffled.length];
 
                 const teamRef = doc(collection(db, "relays")); 
                 batch.set(teamRef, {
                     players: [player1, player2, player3, player4], 
                     topic: defaultTopics[Math.floor(Math.random() * defaultTopics.length)],
                     current_step: 1, 
+                    max_step: max_step, // 최대 단계 저장
                     hints_used: 0,
                     turn_data: { draw1: "", guess1: "", draw2: "", guess2: "" },
                     final_score: null 
@@ -166,42 +177,69 @@
             querySnapshot.forEach((docSnap) => {
                 const team = docSnap.data();
                 const teamId = docSnap.id;
+                const maxStep = team.max_step || 5;
                 
-                let statusBadge = team.current_step === 5 ? '✅ 완료' : `🏃 진행중 (현재 ${team.current_step}단계)`;
+                let statusBadge = team.current_step === maxStep + 1 ? '✅ 완료' : `🏃 진행중 (현재 ${team.current_step}단계)`;
                 let expectedScore = Math.max(0, 50 - (team.hints_used * 10));
                 let scoreText = team.final_score !== null ? `확정 점수: ${team.final_score}점` : `예상 점수: ${expectedScore}점 (힌트 ${team.hints_used}회 사용)`;
+
+                // 단계별 박스 생성
+                let stepsHTML = '';
+                stepsHTML += `
+                    <div class="step-box">
+                        <div class="step-title">1. 원래 제시어</div>
+                        <div class="step-content">${team.topic}</div>
+                    </div>
+                `;
+                
+                if(maxStep >= 2) {
+                    stepsHTML += `
+                        <div class="step-box">
+                            <div class="step-title">2. ${team.players[0]}의 그림</div>
+                            ${team.turn_data.draw1 ? `<img src="${team.turn_data.draw1}">` : '아직 그리는 중...'}
+                        </div>
+                    `;
+                }
+                
+                if(maxStep >= 3) {
+                    stepsHTML += `
+                        <div class="step-box">
+                            <div class="step-title">3. ${team.players[1]}의 추측</div>
+                            <div class="step-content">${team.turn_data.guess1 || '대기 중...'}</div>
+                        </div>
+                    `;
+                }
+                
+                if(maxStep >= 4) {
+                    stepsHTML += `
+                        <div class="step-box">
+                            <div class="step-title">4. ${team.players[2]}의 그림</div>
+                            ${team.turn_data.draw2 ? `<img src="${team.turn_data.draw2}">` : '아직 그리는 중...'}
+                        </div>
+                    `;
+                }
+                
+                if(maxStep >= 5) {
+                    stepsHTML += `
+                        <div class="step-box">
+                            <div class="step-title">5. ${team.players[3]}의 최종 정답</div>
+                            <div class="step-content">${team.turn_data.guess2 || '대기 중...'}</div>
+                        </div>
+                    `;
+                }
 
                 const cardHTML = `
                     <div class="result-card" id="card-${teamId}">
                         <div class="result-header">
                             <div>참여: ${team.players.join(' ➔ ')}</div>
-                            <div style="color: ${team.current_step === 5 ? '#2ecc71' : '#e67e22'}">${statusBadge} | ${scoreText}</div>
+                            <div style="color: ${team.current_step === maxStep + 1 ? '#2ecc71' : '#e67e22'}">${statusBadge} | ${scoreText}</div>
                         </div>
                         
                         <div class="relay-flow">
-                            <div class="step-box">
-                                <div class="step-title">1. 원래 제시어</div>
-                                <div class="step-content">${team.topic}</div>
-                            </div>
-                            <div class="step-box">
-                                <div class="step-title">2. ${team.players[0]}의 그림</div>
-                                ${team.turn_data.draw1 ? `<img src="${team.turn_data.draw1}">` : '아직 그리는 중...'}
-                            </div>
-                            <div class="step-box">
-                                <div class="step-title">3. ${team.players[1]}의 추측</div>
-                                <div class="step-content">${team.turn_data.guess1 || '대기 중...'}</div>
-                            </div>
-                            <div class="step-box">
-                                <div class="step-title">4. ${team.players[2]}의 그림</div>
-                                ${team.turn_data.draw2 ? `<img src="${team.turn_data.draw2}">` : '아직 그리는 중...'}
-                            </div>
-                            <div class="step-box">
-                                <div class="step-title">5. ${team.players[3]}의 최종 정답</div>
-                                <div class="step-content">${team.turn_data.guess2 || '대기 중...'}</div>
-                            </div>
+                            ${stepsHTML}
                         </div>
 
-                        ${team.current_step === 5 && team.final_score === null ? `
+                        ${team.current_step === maxStep + 1 && team.final_score === null ? `
                         <div class="action-buttons" id="actions-${teamId}">
                             <span style="margin-right:15px; font-weight:bold;">최종 정답이 제시어와 일치하나요?</span>
                             <button class="btn-correct" onclick="gradeTeam('${teamId}', ${expectedScore})">✅ 정답 인정! (${expectedScore}점 부여)</button>
