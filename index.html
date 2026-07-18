@@ -7,7 +7,6 @@
     <style>
         body { font-family: '맑은 고딕', sans-serif; text-align: center; margin: 0; padding-top: 50px; background-color: #f4f4f9; }
         .btn-primary { padding: 15px 30px; font-size: 18px; background: #4a90e2; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; font-weight: bold; }
-        .btn-submit { background:#ff6b6b; color:white; font-size:18px; padding:10px 25px; border:none; border-radius:8px; cursor: pointer; font-weight: bold; }
         .btn-hint { background:#f1c40f; color:#333; font-size:18px; padding:10px 20px; border:none; border-radius:8px; cursor: pointer; font-weight: bold; margin-right: 10px; display: none; }
         
         #login-ui { margin-top: 50px; }
@@ -54,7 +53,6 @@
             <h3 id="welcome-msg" style="margin:0;">그림 릴레이</h3>
             <div>
                 <button class="btn-hint" id="hint-btn-draw" onclick="useHint()">💡 힌트보기 (-10점)</button>
-                <button class="btn-submit" onclick="submitDrawing()">제출하기</button>
             </div>
         </div>
         
@@ -64,6 +62,7 @@
             <button onclick="clearCanvas()">🗑️ 전체 지우기</button>
         </div>
         
+        <p style="color:#666; font-size:14px; margin:5px 0;">⏱️ <span id="timer-info">60초가 지나면 자동으로 제출됩니다</span></p>
         <div id="hint-display"></div>
         <div id="timer-container"><div id="timer-bar"></div></div>
         <p id="timer-text">⏱️ 60초</p>
@@ -77,11 +76,11 @@
             <h3 style="margin:0;">친구가 보낸 그림입니다! 무엇일까요?</h3>
             <div>
                 <button class="btn-hint" id="hint-btn-guess" onclick="useHint()">💡 힌트보기 (-10점)</button>
-                <button class="btn-submit" onclick="submitGuess()">정답 제출하기</button>
             </div>
         </div>
+        <p style="color:#666; font-size:14px; margin:5px 0;">⏱️ <span id="timer-info-guess">30초가 지나면 자동으로 제출됩니다</span></p>
         <div id="timer-container"><div id="timer-bar"></div></div>
-        <p id="timer-text">⏱️ 60초</p>
+        <p id="timer-text">⏱️ 30초</p>
         <div id="submitted-badge" style="display:none; color:#2ecc71; font-size:18px; font-weight:bold; margin:10px 0;">✅ 제출 완료! 잠시만 기다려주세요...</div>
         <img id="received-drawing" src="">
         <br>
@@ -103,7 +102,7 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
         
         // ⏱️ 타이머 관련 변수
         let timerInterval = null;
-        const TOTAL_TIME = 60; // 60초
+        let TOTAL_TIME = 60; // 기본 60초
         let timeLeft = TOTAL_TIME;
 
         // ⏱️ 타이머 함수
@@ -147,7 +146,9 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
         function autoSubmit() {
             if(submittedThisRound) return;
             submittedThisRound = true;
+            
             if(myCurrentStep % 2 === 1) {
+                // 그림 제출
                 const dataUrl = canvas.toDataURL();
                 const teamRef = doc(db, "relays", myTeamId);
                 let updateData = {};
@@ -156,6 +157,7 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                 else if(myCurrentStep === 5) updateData = { "turn_data.draw3": dataUrl };
                 updateDoc(teamRef, updateData);
             } else {
+                // 정답 제출
                 const guess = document.getElementById('guess-input').value || '(시간초과)';
                 const teamRef = doc(db, "relays", myTeamId);
                 let updateData = {};
@@ -164,6 +166,7 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                 else if(myCurrentStep === 6) updateData = { "turn_data.guess3": guess };
                 updateDoc(teamRef, updateData);
             }
+            
             document.getElementById('submitted-badge').style.display = 'block';
         }
 
@@ -199,10 +202,22 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                     
                     if(expectedPlayer === myName) {
                         found = true;
+                        
+                        // 이미 제출했으면 UI 변경하지 않음
+                        if(submittedThisRound) {
+                            return;
+                        }
+                        
                         currentTeamData = teamData;
                         myTeamId = docSnap.id;
                         myCurrentStep = currentStep;
                         document.getElementById('submitted-badge').style.display = 'none';
+                        
+                        // 단계에 따라 타이머 시간 설정
+                        TOTAL_TIME = (currentStep % 2 === 0) ? 30 : 60;
+                        document.getElementById('timer-text').innerText = `⏱️ ${TOTAL_TIME}초`;
+                        document.getElementById('timer-info').innerText = TOTAL_TIME === 30 ? '30초가 지나면 자동으로 제출됩니다' : '60초가 지나면 자동으로 제출됩니다';
+                        document.getElementById('timer-info-guess').innerText = '30초가 지나면 자동으로 제출됩니다';
                         
                         document.getElementById('hint-btn-draw').style.display = (currentStep === 3 || currentStep === 5) ? 'inline-block' : 'none';
                         document.getElementById('hint-btn-guess').style.display = (currentStep === 6) ? 'inline-block' : 'none';
@@ -217,19 +232,15 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                             document.getElementById('received-drawing').src = teamData.turn_data.draw1;
                             showGuessUI();
                         } else if(currentStep === 3) {
-                            document.getElementById('welcome-msg').innerText = `🎨 앞 친구의 그림을 따라 그리세요!`;
-                            const hintDiv = document.getElementById('hint-display');
-                            hintDiv.innerHTML = `<p style="margin:5px; font-weight:bold; color:#333;">📖 앞 친구가 그린 그림 참고</p><img src="${teamData.turn_data.draw1}" style="max-width:250px;">`;
-                            hintDiv.style.display = 'block';
+                            document.getElementById('welcome-msg').innerText = `🎨 새로운 그림을 그려주세요!`;
+                            document.getElementById('hint-display').style.display = 'none';
                             showDrawUI();
                         } else if(currentStep === 4) {
                             document.getElementById('received-drawing').src = teamData.turn_data.draw2;
                             showGuessUI();
                         } else if(currentStep === 5) {
-                            document.getElementById('welcome-msg').innerText = `🎨 앞 친구의 그림을 따라 그리세요!`;
-                            const hintDiv = document.getElementById('hint-display');
-                            hintDiv.innerHTML = `<p style="margin:5px; font-weight:bold; color:#333;">📖 앞 친구가 그린 그림 참고</p><img src="${teamData.turn_data.draw2}" style="max-width:250px;">`;
-                            hintDiv.style.display = 'block';
+                            document.getElementById('welcome-msg').innerText = `🎨 새로운 그림을 그려주세요!`;
+                            document.getElementById('hint-display').style.display = 'none';
                             showDrawUI();
                         } else if(currentStep === 6) {
                             document.getElementById('received-drawing').src = teamData.turn_data.draw3;
@@ -266,8 +277,6 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                 // 전역 변수 업데이트 및 UI 초기화
                 globalStep = state.current_step;
                 globalMaxStep = state.max_step || 6;
-                submittedThisRound = false; 
-                document.getElementById('submitted-badge').style.display = 'none';
                 
                 // 학생의 팀 정보 재조회 및 화면 표시
                 findMyTeamAndShow(globalStep, globalMaxStep);
@@ -338,36 +347,6 @@ const existingUsers = await getDocs(query(collection(db, "active_users"), where(
         function showWaitUI(msg) { stopTimer(); document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('login-ui').style.display = 'block'; document.getElementById('wait-content').innerHTML = `<h2>대기 중...</h2><p>${msg}</p>`; }
         function showDrawUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'block'; clearCanvas(); initCanvas(); startTimer(); }
         function showGuessUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'block'; document.getElementById('guess-input').value = ""; startTimer(); }
-
-        // [4. 제출 로직 (current_step은 game_state가 관리, 여기서는 데이터만 저장)]
-        window.submitDrawing = async () => {
-            if(submittedThisRound) return alert("이미 제출했습니다!");
-            if(!confirm("그림을 제출하시겠습니까?")) return;
-            submittedThisRound = true;
-            const dataUrl = canvas.toDataURL(); 
-            const teamRef = doc(db, "relays", myTeamId);
-            let updateData = {};
-            if(myCurrentStep === 1) updateData = { "turn_data.draw1": dataUrl };
-            else if(myCurrentStep === 3) updateData = { "turn_data.draw2": dataUrl };
-            else if(myCurrentStep === 5) updateData = { "turn_data.draw3": dataUrl };
-            await updateDoc(teamRef, updateData);
-            document.getElementById('submitted-badge').style.display = 'block';
-        };
-
-        window.submitGuess = async () => {
-            if(submittedThisRound) return alert("이미 제출했습니다!");
-            const guess = document.getElementById('guess-input').value;
-            if(!guess) return alert("정답을 입력하세요!");
-            if(!confirm("정답을 제출하시겠습니까?")) return;
-            submittedThisRound = true;
-            const teamRef = doc(db, "relays", myTeamId);
-            let updateData = {};
-            if(myCurrentStep === 2) updateData = { "turn_data.guess1": guess };
-            else if(myCurrentStep === 4) updateData = { "turn_data.guess2": guess };
-            else if(myCurrentStep === 6) updateData = { "turn_data.guess3": guess };
-            await updateDoc(teamRef, updateData);
-            document.getElementById('submitted-badge').style.display = 'block';
-        };
 
         // 캔버스 세팅
         const canvas = document.getElementById('drawing-canvas');

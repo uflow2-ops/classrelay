@@ -215,35 +215,30 @@
             await batch.commit(); 
             console.log("✅ 게임 시작 완료!");
             
-            // ✅ game_state 문서 생성 (60초 타이머 자동 진행)
+            // ✅ game_state 문서 생성 (단계별 타이머 자동 진행)
             let currentStep = 1;
-            await setDoc(doc(db, "game_state", "current"), {
-                status: "playing",
-                current_step: currentStep,
-                max_step: max_step
-            });
             
-            alert(`게임이 시작되었습니다!\n\n${max_step}단계까지 진행됩니다.\n각 단계는 60초씩 자동으로 넘어갑니다.`);
-            
-            // ⏱️ 60초마다 단계 자동 전환 (선생님 브라우저에서 실행)
-            let stepTimer = setInterval(async () => {
-                currentStep++;
-                if(currentStep > max_step + 1) {
-                    clearInterval(stepTimer);
-                    await setDoc(doc(db, "game_state", "current"), {
-                        status: "finished",
-                        current_step: currentStep,
-                        max_step: max_step
-                    });
-                    alert("🎉 모든 단계가 완료되었습니다! 결과를 확인해주세요.");
-                    return;
-                }
+            // 단계별 타이머 함수 (짝수: 30초, 홀수: 60초)
+            async function runStepTimer(step, maxStep) {
+                let duration = (step % 2 === 0) ? 30000 : 60000; // 짝수는 30초, 홀수는 60초
+                
                 await setDoc(doc(db, "game_state", "current"), {
                     status: "playing",
-                    current_step: currentStep,
-                    max_step: max_step
+                    current_step: step,
+                    max_step: maxStep
                 });
-            }, 60000); // 60,000ms = 60초
+
+                if (step < maxStep + 1) {
+                    setTimeout(() => runStepTimer(step + 1, maxStep), duration);
+                } else {
+                    setTimeout(async () => {
+                        await setDoc(doc(db, "game_state", "current"), { status: "finished" });
+                    }, duration);
+                }
+            }
+            
+            runStepTimer(currentStep, max_step);
+            alert(`게임이 시작되었습니다!\n\n${max_step}단계까지 진행됩니다.\n- 홀수 단계(그리기): 60초\n- 짝수 단계(추측): 30초`);
         };
 
         // 팀 카드 렌더링 로직을 함수로 분리 (유지보수 용이)
