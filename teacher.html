@@ -228,7 +228,7 @@
                     max_step: maxStep
                 });
 
-                if (step < maxStep + 1) {
+                if (step < maxStep) {
                     setTimeout(() => runStepTimer(step + 1, maxStep), duration);
                 } else {
                     setTimeout(async () => {

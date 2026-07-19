@@ -90,7 +90,7 @@
     <!-- 파이어베이스 설정 파일 로드 -->
     <script type="module">
         import { initializeFirebase } from './firebase-config.js';
-import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
         const { app, db } = await initializeFirebase();
 
@@ -98,16 +98,16 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
         let myTeamId = ""; 
         let myCurrentStep = 0; 
         let currentTeamData = null; 
-        let myDocId = ""; // 내 접속 기록 ID를 기억할 변수
+        let myDocId = "";
         
         // ⏱️ 타이머 관련 변수
         let timerInterval = null;
-        let TOTAL_TIME = 60; // 기본 60초
+        let TOTAL_TIME = 60;
         let timeLeft = TOTAL_TIME;
 
         // ⏱️ 타이머 함수
         function startTimer() {
-            stopTimer(); // 기존 타이머 정리
+            stopTimer();
             timeLeft = TOTAL_TIME;
             updateTimerDisplay();
             
@@ -147,8 +147,12 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
             if(submittedThisRound) return;
             submittedThisRound = true;
             
+            // 화면 조작 강제 잠금
+            painting = false;
+            document.getElementById('drawing-canvas').style.pointerEvents = 'none';
+            document.getElementById('guess-input').disabled = true;
+            
             if(myCurrentStep % 2 === 1) {
-                // 그림 제출
                 const dataUrl = canvas.toDataURL();
                 const teamRef = doc(db, "relays", myTeamId);
                 let updateData = {};
@@ -157,7 +161,6 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                 else if(myCurrentStep === 5) updateData = { "turn_data.draw3": dataUrl };
                 updateDoc(teamRef, updateData);
             } else {
-                // 정답 제출
                 const guess = document.getElementById('guess-input').value || '(시간초과)';
                 const teamRef = doc(db, "relays", myTeamId);
                 let updateData = {};
@@ -170,15 +173,14 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
             document.getElementById('submitted-badge').style.display = 'block';
         }
 
-        // ✅ 전역 game_state 감시 (선생님이 단계를 관리)
+        // ✅ 전역 game_state 감시
         let globalStep = 0;
         let globalMaxStep = 6;
-        let submittedThisRound = false; // 이번 라운드에 이미 제출했는지
-        let teamUnsubscribe = null; // 팀 실시간 감시 해제 함수
+        let submittedThisRound = false;
+        let teamUnsubscribe = null;
 
         // 내가 속한 팀 찾기 + 해당 단계 UI 표시
         function findMyTeamAndShow(currentStep, maxStep) {
-            // 기존 팀 감시 해제
             if(teamUnsubscribe) {
                 teamUnsubscribe();
                 teamUnsubscribe = null;
@@ -186,7 +188,6 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
             
             const q = query(collection(db, "relays"), where("players", "array-contains", myName));
             
-        // 실시간으로 팀 데이터 감시
             teamUnsubscribe = onSnapshot(q, (snapshot) => {
                 let found = false;
                 snapshot.forEach((docSnap) => {
@@ -203,7 +204,6 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                     if(expectedPlayer === myName) {
                         found = true;
                         
-                        // 이미 제출했으면 UI 변경하지 않음
                         if(submittedThisRound) {
                             return;
                         }
@@ -213,7 +213,6 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                         myCurrentStep = currentStep;
                         document.getElementById('submitted-badge').style.display = 'none';
                         
-                        // 단계에 따라 타이머 시간 설정
                         TOTAL_TIME = (currentStep % 2 === 0) ? 30 : 60;
                         document.getElementById('timer-text').innerText = `⏱️ ${TOTAL_TIME}초`;
                         document.getElementById('timer-info').innerText = TOTAL_TIME === 30 ? '30초가 지나면 자동으로 제출됩니다' : '60초가 지나면 자동으로 제출됩니다';
@@ -252,7 +251,6 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                 });
                 
                 if(!found && currentStep <= maxStep) {
-                    // 내 차례가 아님 → 대기
                     showWaitUI(`⏳ ${currentStep}단계는 내 차례가 아닙니다. 잠시만 기다려주세요...`);
                 }
             });
@@ -263,7 +261,6 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                 if(!snapshot.exists()) return;
                 const state = snapshot.data();
                 
-                // 게임 종료 신호 감지
                 if(state.status === "finished") {
                     showWaitUI("🎉 게임이 종료되었습니다! 선생님의 화면을 확인하세요.");
                     return;
@@ -278,7 +275,10 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
                 globalStep = state.current_step;
                 globalMaxStep = state.max_step || 6;
                 
-                // 학생의 팀 정보 재조회 및 화면 표시
+                // 누락되었던 아래 두 줄을 반드시 추가!
+                submittedThisRound = false;
+                document.getElementById('submitted-badge').style.display = 'none';
+                
                 findMyTeamAndShow(globalStep, globalMaxStep);
             });
         }
@@ -292,8 +292,7 @@ import { collection, addDoc, onSnapshot, doc, query, where, updateDoc, increment
             try {
                 console.log("🔑 로그인 시도:", myName);
                 
-                // 기존 접속 기록이 있으면 모두 삭제 (중복 로그인 방지)
-const existingUsers = await getDocs(query(collection(db, "active_users"), where("name", "==", myName)));
+                const existingUsers = await getDocs(query(collection(db, "active_users"), where("name", "==", myName)));
                 console.log("기존 접속 기록:", existingUsers.size, "개");
                 const batch = writeBatch(db);
                 existingUsers.forEach((docSnap) => {
@@ -301,14 +300,12 @@ const existingUsers = await getDocs(query(collection(db, "active_users"), where(
                 });
                 await batch.commit();
 
-                // 새 접속 기록 생성
                 const docRef = await addDoc(collection(db, "active_users"), { name: myName, status: "waiting" });
                 console.log("✅ 접속 기록 생성 완료:", docRef.id);
-                myDocId = docRef.id; // 파이어베이스가 부여한 내 번호 기억
+                myDocId = docRef.id;
 
                 showWaitUI(`${myName}님, 선생님이 게임을 시작할 때까지 기다려주세요! 🤫`);
                 
-                // game_state 감시 시작 (선생님이 단계 전환)
                 listenToGameState();
             } catch (e) { 
                 console.error("❌ 접속 실패:", e);
@@ -316,7 +313,7 @@ const existingUsers = await getDocs(query(collection(db, "active_users"), where(
             }
         };
 
-        // ⭐️ [브라우저 창을 닫을 때 자동으로 데이터 지우기 (퇴장)]
+        // ⭐️ [브라우저 창을 닫을 때 자동으로 데이터 지우기]
         window.addEventListener("beforeunload", () => {
             if (myDocId) {
                 deleteDoc(doc(db, "active_users", myDocId));
@@ -327,16 +324,14 @@ const existingUsers = await getDocs(query(collection(db, "active_users"), where(
         window.useHint = async () => {
             if(confirm("💡 힌트를 보면 우리 팀 점수가 10점 깎입니다! 정말 보시겠습니까?")) {
                 const teamRef = doc(db, "relays", myTeamId);
-                await updateDoc(teamRef, { hints_used: increment(1) }); // 감점 기록
+                await updateDoc(teamRef, { hints_used: increment(1) });
 
                 if(myCurrentStep === 3 || myCurrentStep === 5) {
-                    // 그림 단계: 1번 친구의 원본 그림을 힌트로 표시
                     const hintDiv = document.getElementById('hint-display');
                     hintDiv.innerHTML = `<p style="margin:5px; font-weight:bold; color:red;">🚨 1번 친구의 원본 그림입니다!</p><img src="${currentTeamData.turn_data.draw1}">`;
                     hintDiv.style.display = 'block';
                     document.getElementById('hint-btn-draw').style.display = 'none'; 
                 } else if (myCurrentStep === 6) {
-                    // 마지막 추측 단계: 원본 제시어 공개
                     alert(`🚨 가장 처음 제시된 주제어는 [ ${currentTeamData.topic} ] 입니다!`);
                     document.getElementById('hint-btn-guess').style.display = 'none'; 
                 }
@@ -345,8 +340,8 @@ const existingUsers = await getDocs(query(collection(db, "active_users"), where(
 
         // UI 표시 함수들
         function showWaitUI(msg) { stopTimer(); document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('login-ui').style.display = 'block'; document.getElementById('wait-content').innerHTML = `<h2>대기 중...</h2><p>${msg}</p>`; }
-        function showDrawUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'block'; clearCanvas(); initCanvas(); startTimer(); }
-        function showGuessUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'block'; document.getElementById('guess-input').value = ""; startTimer(); }
+        function showDrawUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'block'; document.getElementById('drawing-canvas').style.pointerEvents = 'auto'; clearCanvas(); initCanvas(); startTimer(); }
+        function showGuessUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'block'; document.getElementById('guess-input').disabled = false; document.getElementById('guess-input').value = ""; startTimer(); }
 
         // 캔버스 세팅
         const canvas = document.getElementById('drawing-canvas');
