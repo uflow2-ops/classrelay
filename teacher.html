@@ -40,40 +40,164 @@
             margin-bottom: 30px;
         }
 
-        /* 릴레이 흐름 박스 크기 확대 및 자동 줄바꿈(가독성 향상) */
+        /* 릴레이 흐름 박스 크기 및 배치 최적화 */
         .relay-flow { 
             display: flex; 
-            flex-wrap: wrap; /* 스크롤바 대신 아래로 줄바꿈되어 한눈에 보이게 */
-            gap: 25px; 
+            flex-wrap: wrap; 
+            gap: 20px; 
             padding-bottom: 20px; 
         }
         .step-box { 
-            flex: 1 1 calc(25% - 25px); /* 4개씩 한 줄에 꽉 차게 배치 */
-            min-width: 280px; 
+            flex: 1 1 calc(25% - 20px); 
+            min-width: 260px; 
             background: #f8f9fa; 
-            padding: 20px; 
+            padding: 15px; 
             border-radius: 15px; 
             border: 2px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+        }
+        /* 추측 텍스트는 위쪽으로 작게 배치 */
+        .step-content-small { 
+            font-size: 1.3em !important; 
+            font-weight: 700; 
+            color: #2c3e50; 
+            background: #eef2f7;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 5px 0 10px 0;
+            text-align: center;
         }
         .step-box img { 
             width: 100%; 
-            max-height: 300px; /* 그림이 시원하게 보이도록 높이 확대 */
+            max-height: 250px; 
             object-fit: contain; 
             border-radius: 10px; 
             border: 1px solid #ced4da; 
-            margin-top: 15px; 
+            cursor: zoom-in; /* 마우스를 올리면 돋보기 모양으로 변경 */
+            transition: transform 0.2s ease;
         }
-        .step-title { font-size: 1.1em !important; color: #495057; font-weight: bold; margin-bottom: 12px; }
-        .step-content { font-size: 2em !important; font-weight: 800; color: #2c3e50; margin-top: 15px; } /* 정답 텍스트 강조 */
+        .step-box img:hover {
+            transform: scale(1.02); /* 살짝 커지는 시각 효과 */
+        }
+        .step-title { font-size: 1em !important; color: #495057; font-weight: bold; }
+        .step-content-large { font-size: 2em !important; font-weight: 800; color: #e74c3c; text-align: center; margin-top: 10px; }
+
+        /* 최종 정답 가리기 및 버튼 스타일 */
+        .secret-guess {
+            filter: blur(8px);
+            transition: filter 0.3s ease;
+            user-select: none;
+        }
+        .secret-guess.revealed {
+            filter: blur(0);
+            user-select: auto;
+        }
+
+        /* 💡 [수정] 정답 확인 버튼 - 반짝이는 그라데이션 및 Shimmer 애니메이션 스타일 */
+        .btn-reveal {
+            position: relative;
+            overflow: hidden; /* 반짝이는 빛이 버튼 밖으로 나가지 않도록 설정 */
+            background: linear-gradient(135deg, #34495e, #2c3e50, #8e44ad, #34495e);
+            background-size: 300% 300%; /* 그라데이션 이동을 위한 배경 확대 */
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            
+            /* 은은하게 색상이 변하는 애니메이션 구동 */
+            animation: gradientShift 4s ease infinite;
+        }
+
+        /* 마우스를 올리거나 TV 앞에서 포커스될 때 반응 */
+        .btn-reveal:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(142, 68, 173, 0.4);
+        }
+
+        /* 💡 흰색 빛줄기가 대각선으로 빠르게 번쩍이며 지나가는 효과 제거/추가용 가상 요소 */
+        .btn-reveal::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -60%;
+            width: 30%;
+            height: 200%;
+            background: linear-gradient(
+                to right, 
+                rgba(255, 255, 255, 0) 0%, 
+                rgba(255, 255, 255, 0.6) 50%, 
+                rgba(255, 255, 255, 0) 100%
+            );
+            transform: rotate(30deg);
+            /* 1.5초 간격으로 무한히 반짝이는 빛줄기 이동 */
+            animation: shimmerEffect 1.5s infinite ease-in-out;
+        }
+
+        /* 1. 배경 그라데이션 색상 전환 키프레임 */
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 2. 대각선 빛 번쩍임 키프레임 */
+        @keyframes shimmerEffect {
+            0% { left: -60%; }
+            100% { left: 140%; }
+        }
 
         /* 채점 버튼 영역 대형화 */
         .action-buttons { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px dashed #dee2e6; }
         .action-buttons span { font-size: 1.8em; display: block; margin-bottom: 15px; }
         .btn-correct { background: #2ecc71; color: white; padding: 15px 40px; border: none; border-radius: 10px; font-size: 24px; cursor: pointer; font-weight: bold; margin-right: 20px; }
         .btn-wrong { background: #e74c3c; color: white; padding: 15px 40px; border: none; border-radius: 10px; font-size: 24px; cursor: pointer; font-weight: bold; }
+
+        /* 💡 [추가] 그림 클릭 유도 및 대형 팝업 모달 스타일 */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 9999; /* 최상단 배치 */
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); /* 어두운 반투명 배경 */
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+        }
+
+        /* 모달 내부 초대형 이미지 */
+        .image-modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border: 5px solid white;
+            border-radius: 15px;
+            background-color: white;
+            animation: zoomEffect 0.2s ease-out;
+        }
+
+        @keyframes zoomEffect {
+            from { transform: scale(0.7); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
+
+    <!-- 💡 [추가] 그림 클릭 시 확대 모달 -->
+    <div id="picture-modal" class="image-modal" onclick="closeImageModal()">
+        <img id="modal-target-img" class="image-modal-content" src="">
+    </div>
 
     <div id="password-screen" style="max-width: 400px; margin: 100px auto; padding: 40px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
         <h2 style="text-align: center; color: #333;">🔒 교사 인증</h2>
@@ -88,6 +212,24 @@
         <div class="dashboard-controls">
             <!-- 💡 [추가] 현재 라운드를 알려주는 대형 텍스트 안내판 -->
             <h1 id="round-display" style="font-size: 2.5em; color: #3498db; margin-bottom: 10px;">🎮 제 1라운드 진행 중</h1>
+            
+            <!-- 💡 [수정] 이번 라운드 제시어 세트 입력창 (추천 버튼 포함) -->
+            <div id="topic-management-box" style="margin: 15px auto; padding: 20px; max-width: 800px; background: #eef2f7; border-radius: 10px; text-align: left;">
+                <label style="font-weight: bold; color: #2c3e50; display: block; margin-bottom: 10px;">🌟 주제별 추천 단어 세트 (클릭 시 자동 입력)</label>
+                
+                <!-- 💡 [추가] 원클릭 카테고리 변경 버튼 영역 -->
+                <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" onclick="window.applyPresetTopic('animal')" style="background: #ff7675; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">🦁 동물</button>
+                    <button type="button" onclick="window.applyPresetTopic('food')" style="background: #fab1a0; color: #2c3e50; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">🍕 음식</button>
+                    <button type="button" onclick="window.applyPresetTopic('sports')" style="background: #74b9ff; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">⚽ 스포츠</button>
+                    <button type="button" onclick="window.applyPresetTopic('object')" style="background: #a29bfe; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">🎒 물건</button>
+                    <button type="button" onclick="window.applyPresetTopic('default')" style="background: #636e72; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">🔄 기본값</button>
+                </div>
+
+                <label for="custom-topics-input" style="font-weight: bold; color: #2c3e50; display: block; margin-bottom: 8px;">📝 이번 라운드 제시어 세트 (쉼표로 구분하여 입력)</label>
+                <textarea id="custom-topics-input" style="width: 100%; height: 60px; padding: 10px; font-size: 15px; border: 2px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; resize: none;"></textarea>
+                <p style="margin: 5px 0 0 0; font-size: 13px; color: #64748b;">* 비어있을 경우 아래 입력된 단어들 중 무작위 배정되며, 언제든 직접 타이핑하여 수정 가능합니다.</p>
+            </div>
             
             <h2 id="student-count" style="margin-top:0;">현재 대기 중인 접속자: 0명</h2>
             <button class="btn-start" onclick="startGame()">🚀 1. 릴레이 게임 시작하기</button>
@@ -113,6 +255,45 @@
 
         let activeUsersData = []; 
         let currentRoundCount = 1; // 💡 [추가] 현재 라운드 번호를 저장하는 변수 (기본값 1)
+
+        // 💡 [수정] 기본 제시어 배열
+        const defaultTopics = [ "사과", "달", "기차", "강아지", "우산", "비행기", "나무", "눈사람", "로봇", "케이크", "축구공", "고양이", "자동차", "선글라스", "나비" ];
+
+        // 💡 [추가] 주제별 추천 단어 프리셋 데이터 딕셔너리
+        const topicPresets = {
+            animal: ["사자", "호랑이", "토끼", "원숭이", "기린", "코끼리", "판다", "펭귄", "개구리", "햄스터", "다람쥐", "돌고래"],
+            food: ["피자", "치킨", "햄버거", "아이스크림", "떡볶이", "김밥", "수박", "바나나", "포도", "도넛", "스파게티", "짜장면"],
+            sports: ["축구", "야구", "농구", "수영", "태권도", "스케이트", "줄넘기", "볼링", "테니스", "골프", "달리기", "피구"],
+            object: ["가방", "필통", "연필", "스마트폰", "시계", "안경", "자전거", "텔레비전", "선풍기", "우산", "신발", "모자"],
+            default: [ "사과", "달", "기차", "강아지", "우산", "비행기", "나무", "눈사람", "로봇", "케이크", "축구공", "고양이", "자동차", "선글라스", "나비" ]
+        };
+
+        // 페이지 로드 시 textarea에 기본 제시어를 채워넣어 편집을 돕습니다.
+        document.addEventListener('DOMContentLoaded', () => {
+            const topicInput = document.getElementById('custom-topics-input');
+            if (topicInput) {
+                topicInput.value = defaultTopics.join(', ');
+            }
+        });
+
+        // 💡 현재 입력창의 단어 배열을 안전하게 파싱하여 가져오는 헬퍼 함수
+        function getSelectedTopics() {
+            const inputVal = document.getElementById('custom-topics-input').value;
+            if (!inputVal.trim()) return defaultTopics;
+            
+            // 쉼표로 분리 후 앞뒤 공백 제거, 빈 단어는 필터링
+            const parsed = inputVal.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            return parsed.length > 0 ? parsed : defaultTopics;
+        }
+
+        // 💡 [추가] 버튼 클릭 시 입력창(textarea)의 텍스트를 변경하는 매핑 함수
+        window.applyPresetTopic = (category) => {
+            const topicInput = document.getElementById('custom-topics-input');
+            if (topicInput && topicPresets[category]) {
+                // 배열 요소를 쉼표와 공백으로 연결하여 문자열로 치환
+                topicInput.value = topicPresets[category].join(', ');
+            }
+        };
 
         // [1] 대기실 실시간 감시
         console.log("🔍 대기실 감시 시작...");
@@ -167,8 +348,6 @@
             }
         };
 
-        const defaultTopics = [ "사과", "달", "기차", "강아지", "우산", "비행기", "나무", "눈사람", "로봇", "케이크", "축구공", "고양이", "자동차", "선글라스", "나비" ];
-
         // [2] 게임 시작 로직 (라운드 로빈 방식 - 모든 학생이 각 역할을 한 번씩)
         window.startGame = async () => {
             console.log("🎮 게임 시작 버튼 클릭됨");
@@ -201,6 +380,9 @@
             // 4명 이상 = 6단계 (1:players[0]그림, 2:players[1]추측, 3:players[1]그림, 4:players[2]추측, 5:players[2]그림, 6:players[3]추측)
             let max_step = shuffled.length >= 4 ? 6 : 4;
             
+            // 💡 [수정] 입력창에서 제시어 풀 가져오기
+            const currentPool = getSelectedTopics();
+            
             const batch = writeBatch(db);
 
             // 학생 수만큼 팀 생성 (라운드 로빈 방식)
@@ -214,7 +396,7 @@
                 const teamRef = doc(collection(db, "relays")); 
                 batch.set(teamRef, {
                     players: [player1, player2, player3, player4], 
-                    topic: defaultTopics[Math.floor(Math.random() * defaultTopics.length)],
+                    topic: currentPool[Math.floor(Math.random() * currentPool.length)],
                     current_step: 1, 
                     max_step: max_step, // 최대 단계 저장
                     hints_used: 0,
@@ -292,6 +474,9 @@
                 let shuffled = [...students].sort(() => Math.random() - 0.5);
                 let max_step = shuffled.length >= 4 ? 6 : 4;
 
+                // 💡 [수정] 입력창에서 제시어 풀 가져오기
+                const currentPoolRestart = getSelectedTopics();
+
                 const newGameBatch = writeBatch(db);
                 // 라운드 로빈 방식으로 신규 팀 및 랜덤 주제어 배정
                 for (let i = 0; i < shuffled.length; i++) {
@@ -303,7 +488,7 @@
                     const teamRef = doc(collection(db, "relays")); 
                     newGameBatch.set(teamRef, {
                         players: [player1, player2, player3, player4], 
-                        topic: defaultTopics[Math.floor(Math.random() * defaultTopics.length)],
+                        topic: currentPoolRestart[Math.floor(Math.random() * currentPoolRestart.length)],
                         current_step: 1, 
                         max_step: max_step,
                         hints_used: 0,
@@ -370,39 +555,41 @@
             let expectedScore = Math.max(0, 50 - (team.hints_used * 10));
             let scoreText = team.final_score !== null ? `확정 점수: ${team.final_score}점` : `예상 점수: ${expectedScore}점 (힌트 ${team.hints_used}회 사용)`;
 
+            // 💡 [레이아웃 개역] 추측 카드가 하단에 따로 분리되지 않고, 다음 그림 박스의 상단으로 결합됩니다.
             let stepsHTML = '';
             stepsHTML += `
                 <div class="step-box">
                     <div class="step-title">1. 원래 제시어</div>
-                    <div class="step-content">🎯 ${team.topic}</div>
+                    <div class="step-content-large" style="color:#4a90e2;">🎯 ${team.topic}</div>
                 </div>
                 <div class="step-box">
                     <div class="step-title">2. ${team.players[0]}의 그림</div>
-                    ${draw1 ? `<img src="${draw1}">` : '아직 그리는 중...'}
+                    <div style="margin-top:auto;">
+                        ${draw1 ? `<img src="${draw1}" onclick="window.openImageModal('${draw1}')">` : '아직 그리는 중...'}
+                    </div>
                 </div>
                 <div class="step-box">
-                    <div class="step-title">3. ${team.players[1]}의 추측</div>
-                    <div class="step-content">✏️ ${guess1}</div>
-                </div>
-                <div class="step-box">
-                    <div class="step-title">4. ${team.players[1]}의 그림</div>
-                    ${draw2 ? `<img src="${draw2}">` : '아직 그리는 중...'}
+                    <div class="step-title">3~4. ${team.players[1]}의 추측 및 그림</div>
+                    <div class="step-content-small">✏️ 추측: ${guess1}</div>
+                    <div style="margin-top:auto;">
+                        ${draw2 ? `<img src="${draw2}" onclick="window.openImageModal('${draw2}')">` : '아직 그리는 중...'}
+                    </div>
                 </div>
             `;
             
             if(maxStep >= 6) {
                 stepsHTML += `
                     <div class="step-box">
-                        <div class="step-title">5. ${team.players[2]}의 추측</div>
-                        <div class="step-content">✏️ ${guess2}</div>
+                        <div class="step-title">5~6. ${team.players[2]}의 추측 및 그림</div>
+                        <div class="step-content-small">✏️ 추측: ${guess2}</div>
+                        <div style="margin-top:auto;">
+                            ${draw3 ? `<img src="${draw3}" onclick="window.openImageModal('${draw3}')">` : '아직 그리는 중...'}
+                        </div>
                     </div>
-                    <div class="step-box">
-                        <div class="step-title">6. ${team.players[2]}의 그림</div>
-                        ${draw3 ? `<img src="${draw3}">` : '아직 그리는 중...'}
-                    </div>
-                    <div class="step-box">
+                    <div class="step-box" id="final-box-${teamId}">
                         <div class="step-title">7. ${team.players[3]}의 최종 정답</div>
-                        <div class="step-content">🏁 ${guess3}</div>
+                        <button class="btn-reveal" id="reveal-btn-${teamId}" onclick="window.revealFinalGuess('${teamId}')">👁️ 정답 확인</button>
+                        <div class="step-content-large secret-guess" id="final-guess-${teamId}">🏁 ${guess3}</div>
                     </div>
                 `;
             }
@@ -411,7 +598,7 @@
                 <div class="result-card" id="card-${teamId}">
                     <div class="result-header">
                         🏆 ${rank}위 팀 | 순서: ${team.players.join(' ➔ ')}
-                        <div style="float: right; color: ${team.current_step === maxStep + 1 ? '#2ecc71' : '#e67e22'}">${statusBadge} | ${scoreText}</div>
+                        <div style="float: right; color: ${team.final_score !== null ? '#2ecc71' : '#e67e22'}">${statusBadge} | ${scoreText}</div>
                     </div>
                     
                     <div class="relay-flow">
@@ -428,6 +615,33 @@
                 </div>
             `;
         }
+
+        // 💡 [추가] 최종 정답을 클릭 시 블러를 해제하고 띄워주는 글로벌 함수
+        window.revealFinalGuess = (teamId) => {
+            const guessEl = document.getElementById(`final-guess-${teamId}`);
+            const btnEl = document.getElementById(`reveal-btn-${teamId}`);
+            if (guessEl && btnEl) {
+                guessEl.classList.add('revealed');
+                btnEl.style.display = 'none'; // 확인 후 버튼 숨김
+            }
+        };
+
+        // ② <script> 태그 안쪽 맨 아래에 모달 제어 함수 2개를 추가합니다.
+        window.openImageModal = (src) => {
+            const modal = document.getElementById('picture-modal');
+            const modalImg = document.getElementById('modal-target-img');
+            if (modal && modalImg) {
+                modalImg.src = src;
+                modal.style.display = 'flex'; // 화면 중앙 정렬 구동
+            }
+        };
+
+        window.closeImageModal = () => {
+            const modal = document.getElementById('picture-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        };
 
         // [3] 결과 확인 및 화면 렌더링
         window.showResults = async () => {

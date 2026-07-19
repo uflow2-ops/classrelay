@@ -126,6 +126,14 @@
                 timeLeft--;
                 updateTimerDisplay();
                 
+                // 💡 [핵심 해결책] 시간이 10초 이하일 때 힌트 버튼 비활성화
+                if(timeLeft <= 10) {
+                    document.getElementById('hint-btn-draw').disabled = true;
+                    document.getElementById('hint-btn-guess').disabled = true;
+                    document.getElementById('hint-btn-draw').style.opacity = '0.5';
+                    document.getElementById('hint-btn-guess').style.opacity = '0.5';
+                }
+                
                 if(timeLeft <= 0) {
                     stopTimer();
                     autoSubmit();
@@ -198,7 +206,7 @@
         let submittedThisRound = false;
         let teamUnsubscribe = null;
         
-        let lastRenderedStep = 0; // 💡 [추가된 변수] 내가 마지막으로 화면에 띄운 단계를 기억합니다.
+        let lastRenderedStep = 0; // 💡 [추가된 변수] 내가 마지막으로 화면에 그린 단계를 기억합니다.
 
         // 내가 속한 팀 찾기 + 해당 단계 UI 표시
         function findMyTeamAndShow(currentStep, maxStep) {
@@ -248,6 +256,12 @@
                         
                         document.getElementById('hint-btn-draw').style.display = (currentStep === 3 || currentStep === 5) ? 'inline-block' : 'none';
                         document.getElementById('hint-btn-guess').style.display = (currentStep === 6) ? 'inline-block' : 'none';
+                        // 💡 [핵심 해결책] 힌트 버튼 활성화 상태 초기화
+                        document.getElementById('hint-btn-draw').disabled = false;
+                        document.getElementById('hint-btn-guess').disabled = false;
+                        document.getElementById('hint-btn-draw').style.opacity = '1';
+                        document.getElementById('hint-btn-guess').style.opacity = '1';
+                        
                         document.getElementById('hint-display').style.display = 'none';
                         
                         if(currentStep === 1) {
@@ -432,6 +446,12 @@
 
         // [3. 힌트 사용]
         window.useHint = async () => {
+            // 💡 [핵심 해결책] 시간이 10초 이하이면 힌트 사용 차단
+            if(timeLeft <= 10) {
+                alert("⏰ 남은 시간이 10초 이하입니다. 힌트를 사용할 수 없습니다!");
+                return;
+            }
+            
             if(confirm("💡 힌트를 보면 우리 팀 점수가 10점 깎입니다! 정말 보시겠습니까?")) {
                 const teamRef = doc(db, "relays", myTeamId);
                 await updateDoc(teamRef, { hints_used: increment(1) });
@@ -454,45 +474,26 @@
             document.getElementById('game-ui').style.display = 'none';
             document.getElementById('guess-ui').style.display = 'none';
             document.getElementById('login-ui').style.display = 'block';
-            // 점수 박스와 라운드 표시는 유지하고 메시지만 교체
+            
             const waitContent = document.getElementById('wait-content');
             const scoreBox = document.getElementById('my-score-box');
             const roundDisplay = document.getElementById('student-round-display');
-            // 라운드 표시 유지 (이미 존재하면 보존)
-            if (!roundDisplay.parentNode) {
-                waitContent.insertBefore(roundDisplay, waitContent.firstChild);
+            
+            // 💡 [수정] 기존 요소를 완전히 비우지 않고, 메시지 영역만 동적으로 교체합니다.
+            // 기존 입력창과 버튼, 안내 링크를 대기 상태에 맞게 제어
+            const inputName = document.getElementById('student-name');
+            const loginBtn = waitContent.querySelector('.btn-primary');
+            if (inputName) inputName.style.display = 'none';
+            if (loginBtn) loginBtn.style.display = 'none';
+
+            // 메시지 출력용 p 태그 제어
+            let msgP = document.getElementById('wait-msg-text');
+            if (!msgP) {
+                msgP = document.createElement('p');
+                msgP.id = 'wait-msg-text';
+                waitContent.insertBefore(msgP, scoreBox);
             }
-            // 점수 박스가 이미 있으면 유지, 없으면 추가
-            if (!scoreBox.parentNode) {
-                waitContent.appendChild(scoreBox);
-            }
-            // 메시지만 교체 (라운드 표시와 점수 박스는 유지)
-            const existingMsg = waitContent.querySelector('h2');
-            if (existingMsg) {
-                existingMsg.innerText = '대기 중...';
-            } else {
-                const h2 = document.createElement('h2');
-                h2.innerText = '대기 중...';
-                waitContent.appendChild(h2);
-            }
-            const existingP = waitContent.querySelector('p:not(#my-accumulated-score)');
-            if (existingP) {
-                existingP.innerText = msg;
-            } else {
-                const p = document.createElement('p');
-                p.innerText = msg;
-                waitContent.appendChild(p);
-            }
-            const existingLink = waitContent.querySelector('a');
-            if (!existingLink) {
-                const a = document.createElement('a');
-                a.href = 'teacher.html';
-                a.style.color = '#999';
-                a.style.fontSize = '14px';
-                a.style.textDecoration = 'none';
-                a.innerText = '선생님은 여기로';
-                waitContent.appendChild(a);
-            }
+            msgP.innerText = msg;
         }
         function showDrawUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'block'; document.getElementById('drawing-canvas').style.pointerEvents = 'auto'; clearCanvas(); initCanvas(); startTimer(); }
         function showGuessUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'block'; document.getElementById('guess-input').disabled = false; document.getElementById('guess-input').value = ""; startTimer(); }
