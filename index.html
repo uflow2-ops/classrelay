@@ -178,6 +178,8 @@
         let globalMaxStep = 6;
         let submittedThisRound = false;
         let teamUnsubscribe = null;
+        
+        let lastRenderedStep = 0; // 💡 [추가된 변수] 내가 마지막으로 화면에 띄운 단계를 기억합니다.
 
         // 내가 속한 팀 찾기 + 해당 단계 UI 표시
         function findMyTeamAndShow(currentStep, maxStep) {
@@ -211,6 +213,13 @@
                         currentTeamData = teamData;
                         myTeamId = docSnap.id;
                         myCurrentStep = currentStep;
+                        
+                        // 💡 [핵심 해결책] 이번 단계를 이미 화면에 그렸다면 더 이상 타이머를 리셋하지 않습니다!
+                        if (lastRenderedStep === currentStep) {
+                            return; 
+                        }
+                        lastRenderedStep = currentStep; // 처음 띄우는 단계라면 기억해둡니다.
+
                         document.getElementById('submitted-badge').style.display = 'none';
                         
                         TOTAL_TIME = (currentStep % 2 === 0) ? 30 : 60;
@@ -252,6 +261,7 @@
                 
                 if(!found && currentStep <= maxStep) {
                     showWaitUI(`⏳ ${currentStep}단계는 내 차례가 아닙니다. 잠시만 기다려주세요...`);
+                    lastRenderedStep = 0; // 💡 대기 상태일 때는 다음 턴을 위해 초기화해줍니다.
                 }
             });
         }
@@ -261,7 +271,12 @@
                 if(!snapshot.exists()) return;
                 const state = snapshot.data();
                 
+                // 💡 [핵심 해결책 1] 게임이 종료되었을 때, 마지막 단계(6단계)를 강제 제출
                 if(state.status === "finished") {
+                    if (!submittedThisRound && globalStep > 0) {
+                        console.log("게임 종료! 마지막 정답 강제 제출");
+                        autoSubmit(); 
+                    }
                     showWaitUI("🎉 게임이 종료되었습니다! 선생님의 화면을 확인하세요.");
                     return;
                 }
@@ -271,14 +286,22 @@
                     return;
                 }
                 
+                // 💡 [핵심 해결책 2] 선생님이 다음 단계를 지시했는데, 아직 내 타이머가 안 끝나서 제출을 못했다면?
+                // ➔ 화면을 지우기 전에 지금 있는 그림/글씨를 즉시 강제 제출!
+                if (globalStep > 0 && globalStep !== state.current_step && !submittedThisRound) {
+                    console.log("시간 초과 컷오프! 강제 제출 실행");
+                    autoSubmit(); 
+                }
+                
                 // 전역 변수 업데이트 및 UI 초기화
                 globalStep = state.current_step;
                 globalMaxStep = state.max_step || 6;
                 
-                // 누락되었던 아래 두 줄을 반드시 추가!
-                submittedThisRound = false;
+                // 다음 단계를 위해 제출 상태 초기화
+                submittedThisRound = false; 
                 document.getElementById('submitted-badge').style.display = 'none';
                 
+                // 학생의 팀 정보 재조회 및 화면 표시
                 findMyTeamAndShow(globalStep, globalMaxStep);
             });
         }
