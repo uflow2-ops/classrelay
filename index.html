@@ -35,14 +35,25 @@
 <body>
 
     <!-- 1. 로그인 및 대기 화면 -->
-    <div id="login-ui">
-        <h2>🎨 우리반 그림 릴레이</h2>
-        <div id="wait-content">
-            <p>자신의 이름을 입력하고 입장해주세요!</p>
+<div id="login-ui">
+    <h2>🎨 우리반 그림 릴레이</h2>
+    <div id="wait-content">
+        <!-- 💡 [추가] 현재 라운드 표시 전광판 -->
+        <h3 id="student-round-display" style="color: #3498db; margin-bottom: 5px; display: none;">🎮 제 1라운드 대기 중</h3>
+        
+        <p>자신의 이름을 입력하고 입장해주세요!</p>
             <input type="text" id="student-name" placeholder="이름을 입력하세요">
             <br>
             <button class="btn-primary" onclick="login()">입장하기</button>
             <br><br>
+            
+            <!-- 💡 [추가] 학생 누적 점수 표시 박스 (초기에는 숨김) -->
+            <div id="my-score-box" style="display:none; margin-top:25px; padding:15px; background:#fffdf0; border:2px dashed #f1c40f; border-radius:10px; max-width:300px; margin-left:auto; margin-right:auto;">
+                <span style="font-size:16px; color:#7f8c8d; font-weight:bold;">🏆 나의 현재 누적 점수</span>
+                <h1 id="my-accumulated-score" style="margin:5px 0 0 0; color:#d35400;">0점</h1>
+            </div>
+            
+            <br>
             <a href="teacher.html" style="color: #999; font-size: 14px; text-decoration: none;">선생님은 여기로</a>
         </div>
     </div>
@@ -130,17 +141,25 @@
         }
         
         function updateTimerDisplay() {
-            const bar = document.getElementById('timer-bar');
-            const text = document.getElementById('timer-text');
+            // 그리기 화면과 추측 화면의 타이머 바를 모두 가져옵니다.
+            const bars = document.querySelectorAll('#timer-bar');
             const pct = (timeLeft / TOTAL_TIME) * 100;
-            bar.style.width = pct + '%';
-            text.innerText = `⏱️ ${timeLeft}초`;
             
-            if(timeLeft <= 10) {
-                bar.classList.add('timer-urgent');
-            } else {
-                bar.classList.remove('timer-urgent');
-            }
+            // 두 화면의 타이머 바를 동시에 줄어들게 만듭니다.
+            bars.forEach(bar => {
+                bar.style.width = pct + '%';
+                if(timeLeft <= 10) {
+                    bar.classList.add('timer-urgent');
+                } else {
+                    bar.classList.remove('timer-urgent');
+                }
+            });
+
+            // 💡 [핵심 해결책] 두 화면에 존재하는 모든 타이머 텍스트를 찾아 현재 남은 시간을 표시합니다.
+            const texts = document.querySelectorAll('#timer-text');
+            texts.forEach(text => {
+                text.innerText = `⏱️ ${timeLeft}초`;
+            });
         }
         
         function autoSubmit() {
@@ -240,14 +259,18 @@
                             document.getElementById('received-drawing').src = teamData.turn_data.draw1;
                             showGuessUI();
                         } else if(currentStep === 3) {
-                            document.getElementById('welcome-msg').innerText = `🎨 새로운 그림을 그려주세요!`;
+                            // 💡 방금 내가(2번 학생) 입력했던 추측 정답을 불러옵니다.
+                            const myPreviousGuess = teamData.turn_data.guess1 || "(미입력)";
+                            document.getElementById('welcome-msg').innerText = `🎨 제시어: [ ${myPreviousGuess} ] - 그림으로 표현해주세요!`;
                             document.getElementById('hint-display').style.display = 'none';
                             showDrawUI();
                         } else if(currentStep === 4) {
                             document.getElementById('received-drawing').src = teamData.turn_data.draw2;
                             showGuessUI();
                         } else if(currentStep === 5) {
-                            document.getElementById('welcome-msg').innerText = `🎨 새로운 그림을 그려주세요!`;
+                            // 💡 방금 내가(3번 학생) 입력했던 추측 정답을 불러옵니다.
+                            const myPreviousGuess = teamData.turn_data.guess2 || "(미입력)";
+                            document.getElementById('welcome-msg').innerText = `🎨 제시어: [ ${myPreviousGuess} ] - 그림으로 표현해주세요!`;
                             document.getElementById('hint-display').style.display = 'none';
                             showDrawUI();
                         } else if(currentStep === 6) {
@@ -271,6 +294,13 @@
                 if(!snapshot.exists()) return;
                 const state = snapshot.data();
                 
+                // 💡 [추가] 교사가 저장한 현재 라운드 번호를 가져와 대기 화면에 표시합니다.
+                const roundDisplay = document.getElementById('student-round-display');
+                if (state.current_round) {
+                    roundDisplay.innerText = `🎮 제 ${state.current_round}라운드 대기 중`;
+                    roundDisplay.style.display = 'block';
+                }
+
                 // 💡 [핵심 해결책 1] 게임이 종료되었을 때, 마지막 단계(6단계)를 강제 제출
                 if(state.status === "finished") {
                     if (!submittedThisRound && globalStep > 0) {
@@ -306,6 +336,60 @@
             });
         }
 
+        // 💡 [추가] 내 누적 점수를 실시간으로 감시하는 함수
+        let scoreUnsubscribe = null;
+        let currentDisplayScore = 0; // 💡 현재 화면에 표시 중인 점수를 기억하는 변수
+
+        function trackMyScore() {
+            if (scoreUnsubscribe) scoreUnsubscribe();
+            
+            scoreUnsubscribe = onSnapshot(doc(db, "user_scores", myName), (docSnap) => {
+                const scoreBox = document.getElementById('my-score-box');
+                const scoreText = document.getElementById('my-accumulated-score');
+                
+                if (docSnap.exists()) {
+                    const userData = docSnap.data();
+                    const targetScore = userData.score || 0; // 도달해야 하는 실제 점수
+                    
+                    // 💡 [핵심 애니메이션 로직]
+                    const startScore = currentDisplayScore;
+                    const duration = 1000; // 애니메이션 지속 시간 (1초 = 1000ms)
+                    let startTime = null;
+                    
+                    function animateCount(timestamp) {
+                        if (!startTime) startTime = timestamp;
+                        const progress = timestamp - startTime;
+                        
+                        // 진행도 계산 (0에서 1 사이)
+                        const rate = Math.min(progress / duration, 1);
+                        
+                        // 3학년 아이들의 시각적 부드러움을 위해 Ease-Out 효과 적용 (점점 느려짐)
+                        const easeOutRate = 1 - Math.pow(1 - rate, 3);
+                        
+                        // 현재 프레임의 점수 계산 및 출력
+                        currentDisplayScore = Math.floor(startScore + (targetScore - startScore) * easeOutRate);
+                        scoreText.innerText = `${currentDisplayScore}점`;
+                        
+                        // 목표 점수에 도달할 때까지 반복 수행
+                        if (rate < 1) {
+                            requestAnimationFrame(animateCount);
+                        } else {
+                            currentDisplayScore = targetScore;
+                            scoreText.innerText = `${targetScore}점`;
+                        }
+                    }
+                    
+                    // 애니메이션 시작 구동
+                    requestAnimationFrame(animateCount);
+                    
+                } else {
+                    currentDisplayScore = 0;
+                    scoreText.innerText = `0점`;
+                }
+                scoreBox.style.display = 'block'; 
+            });
+        }
+
         // [1. 로그인]
         window.login = async () => {
             const nameInput = document.getElementById('student-name').value;
@@ -328,6 +412,9 @@
                 myDocId = docRef.id;
 
                 showWaitUI(`${myName}님, 선생님이 게임을 시작할 때까지 기다려주세요! 🤫`);
+                
+                // 💡 [추가] 실시간 누적 점수 추적 시작
+                trackMyScore();
                 
                 listenToGameState();
             } catch (e) { 
@@ -362,7 +449,51 @@
         };
 
         // UI 표시 함수들
-        function showWaitUI(msg) { stopTimer(); document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('login-ui').style.display = 'block'; document.getElementById('wait-content').innerHTML = `<h2>대기 중...</h2><p>${msg}</p>`; }
+        function showWaitUI(msg) {
+            stopTimer();
+            document.getElementById('game-ui').style.display = 'none';
+            document.getElementById('guess-ui').style.display = 'none';
+            document.getElementById('login-ui').style.display = 'block';
+            // 점수 박스와 라운드 표시는 유지하고 메시지만 교체
+            const waitContent = document.getElementById('wait-content');
+            const scoreBox = document.getElementById('my-score-box');
+            const roundDisplay = document.getElementById('student-round-display');
+            // 라운드 표시 유지 (이미 존재하면 보존)
+            if (!roundDisplay.parentNode) {
+                waitContent.insertBefore(roundDisplay, waitContent.firstChild);
+            }
+            // 점수 박스가 이미 있으면 유지, 없으면 추가
+            if (!scoreBox.parentNode) {
+                waitContent.appendChild(scoreBox);
+            }
+            // 메시지만 교체 (라운드 표시와 점수 박스는 유지)
+            const existingMsg = waitContent.querySelector('h2');
+            if (existingMsg) {
+                existingMsg.innerText = '대기 중...';
+            } else {
+                const h2 = document.createElement('h2');
+                h2.innerText = '대기 중...';
+                waitContent.appendChild(h2);
+            }
+            const existingP = waitContent.querySelector('p:not(#my-accumulated-score)');
+            if (existingP) {
+                existingP.innerText = msg;
+            } else {
+                const p = document.createElement('p');
+                p.innerText = msg;
+                waitContent.appendChild(p);
+            }
+            const existingLink = waitContent.querySelector('a');
+            if (!existingLink) {
+                const a = document.createElement('a');
+                a.href = 'teacher.html';
+                a.style.color = '#999';
+                a.style.fontSize = '14px';
+                a.style.textDecoration = 'none';
+                a.innerText = '선생님은 여기로';
+                waitContent.appendChild(a);
+            }
+        }
         function showDrawUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'block'; document.getElementById('drawing-canvas').style.pointerEvents = 'auto'; clearCanvas(); initCanvas(); startTimer(); }
         function showGuessUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'block'; document.getElementById('guess-input').disabled = false; document.getElementById('guess-input').value = ""; startTimer(); }
 
