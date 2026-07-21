@@ -5,190 +5,428 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>교사 대시보드 - 텔레스트레이션 클라스</title>
     <style>
-        body { 
-            font-family: '맑은 고딕', sans-serif; 
-            background-color: #f4f4f9; 
-            padding: 20px; 
-            margin: 0;
-        }
-        h1, h2 { text-align: center; color: #333; }
-        
-        /* 상단 컨트롤 패널 */
-        .dashboard-controls { text-align: center; margin: 20px 0; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .btn-start { padding: 15px 25px; font-size: 18px; background: #2ecc71; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin: 5px; }
-        .btn-result { padding: 15px 25px; font-size: 18px; background: #9b59b6; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin: 5px; }
-        .btn-reset { padding: 15px 25px; font-size: 18px; background: #e74c3c; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin: 5px; } /* 🧹 초기화 버튼 스타일 추가 */
-        
-        /* 대기실 (학생 목록) */
-        .student-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; max-width: 1000px; margin: 0 auto; }
-        .student-card { background: white; padding: 20px; border-radius: 10px; text-align: center; font-size: 20px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-left: 8px solid #4a90e2; }
-        
-        /* 결과 확인 카드 디자인 초대형화 */
-        #results-view { max-width: 95% !important; margin: 0 auto; }
-        .result-card { 
-            background: white; 
-            margin-bottom: 40px; 
-            padding: 40px; 
-            border-radius: 20px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
-            border: 2px solid #eef2f7;
-        }
-        .result-header { 
-            font-size: 2em !important; /* 팀 제목 크기 두 배로 변경 */
-            font-weight: bold;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+        :root {
+            --bg: #eff6ff;
+            --surface: rgba(255,255,255,0.95);
+            --surface-strong: #ffffff;
+            --border: rgba(96, 165, 250, 0.22);
+            --text: #111827;
+            --muted: #475569;
+            --primary: #2563eb;
+            --primary-soft: #dbeafe;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --accent: #f59e0b;
         }
 
-        /* 릴레이 흐름 박스 크기 및 배치 최적화 */
-        .relay-flow { 
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 20px; 
-            padding-bottom: 20px; 
+        * {
+            box-sizing: border-box;
         }
-        .step-box { 
-            flex: 1 1 calc(25% - 20px); 
-            min-width: 260px; 
-            background: #f8f9fa; 
-            padding: 15px; 
-            border-radius: 15px; 
-            border: 2px solid #e9ecef;
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: '맑은 고딕', sans-serif;
+            color: var(--text);
+            background: linear-gradient(135deg, #e0f2fe 0%, #eff6ff 45%, #f8fafc 100%);
+            padding: 20px 24px 36px;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
         }
-        /* 추측 텍스트는 위쪽으로 작게 배치 */
-        .step-content-small { 
-            font-size: 1.3em !important; 
-            font-weight: 700; 
-            color: #2c3e50; 
-            background: #eef2f7;
-            padding: 8px 12px;
-            border-radius: 8px;
-            margin: 5px 0 10px 0;
+
+        main {
+            width: min(100%, 1260px);
+        }
+
+        h1 {
+            font-size: clamp(2rem, 2.4vw, 2.8rem);
+            margin-bottom: 16px;
             text-align: center;
         }
-        .step-box img { 
-            width: 100%; 
-            max-height: 250px; 
-            object-fit: contain; 
-            border-radius: 10px; 
-            border: 1px solid #ced4da; 
-            cursor: zoom-in; /* 마우스를 올리면 돋보기 모양으로 변경 */
-            transition: transform 0.2s ease;
-        }
-        .step-box img:hover {
-            transform: scale(1.02); /* 살짝 커지는 시각 효과 */
-        }
-        .step-title { font-size: 1em !important; color: #495057; font-weight: bold; }
-        .step-content-large { font-size: 2em !important; font-weight: 800; color: #e74c3c; text-align: center; margin-top: 10px; }
 
-        /* 최종 정답 가리기 및 버튼 스타일 */
+        h2, h3 {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .dashboard-controls {
+            display: grid;
+            gap: 20px;
+            padding: 30px;
+            border-radius: 20px;
+            background: var(--surface);
+            border: 1px solid rgba(96, 165, 250, 0.18);
+            box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+        }
+
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px;
+            justify-content: space-between;
+        }
+
+        .control-row .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .control-row .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .btn-start,
+        .btn-result,
+        .btn-reset,
+        .control-button,
+        .preset-button {
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 800;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        }
+
+        .btn-start,
+        .btn-result,
+        .btn-reset {
+            padding: 16px 30px;
+            font-size: 1rem;
+            color: white;
+            box-shadow: 0 16px 35px rgba(37, 99, 235, 0.18);
+        }
+
+        .btn-start { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+        .btn-result { background: linear-gradient(135deg, #8b5cf6, #a855f7); }
+        .btn-reset { background: linear-gradient(135deg, #ef4444, #f97316); }
+
+        .btn-start:hover,
+        .btn-result:hover,
+        .btn-reset:hover,
+        .preset-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+        }
+
+        .preset-button {
+            padding: 10px 18px;
+            font-size: 0.95rem;
+            color: white;
+            background: #2563eb;
+        }
+
+        .preset-button.alt { background: #f97316; }
+        .preset-button.alt2 { background: #22c55e; }
+        .preset-button.alt3 { background: #8b5cf6; }
+
+        #topic-management-box {
+            background: var(--primary-soft);
+            border-radius: 24px;
+            padding: 26px;
+            border: 1px solid rgba(59, 130, 246, 0.18);
+        }
+
+        #topic-management-box label,
+        #topic-management-box p {
+            color: var(--text);
+        }
+
+        #custom-topics-input {
+            width: 100%;
+            min-height: 110px;
+            padding: 18px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.45);
+            background: white;
+            resize: vertical;
+            font-size: 1rem;
+            color: var(--text);
+        }
+
+        #student-count {
+            font-size: 1.25rem;
+            color: #334155;
+            margin: 0;
+        }
+
+        .student-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin: 0 auto;
+            padding: 20px 0 10px;
+        }
+
+        .student-card {
+            background: var(--surface-strong);
+            padding: 22px;
+            border-radius: 28px;
+            text-align: center;
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #0f172a;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+        }
+
+        #results-view {
+            max-width: 100%;
+            margin: 40px auto 0;
+        }
+
+        .result-card {
+            background: var(--surface);
+            padding: 32px;
+            border-radius: 32px;
+            margin-bottom: 34px;
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            box-shadow: 0 20px 42px rgba(15, 23, 42, 0.08);
+        }
+
+        .result-header {
+            font-size: clamp(1.6rem, 2vw, 2.4rem);
+            margin-bottom: 24px;
+            color: #0f172a;
+        }
+
+        .relay-flow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            padding-bottom: 20px;
+        }
+
+        .step-box {
+            flex: 1 1 calc(25% - 18px);
+            min-width: 240px;
+            background: #f8fafc;
+            padding: 22px;
+            border-radius: 28px;
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .step-title {
+            font-size: 0.98rem;
+            color: #334155;
+            font-weight: 800;
+        }
+
+        .step-content-small {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1e293b;
+            background: white;
+            padding: 12px 14px;
+            border-radius: 18px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            text-align: center;
+        }
+
+        .step-content-large {
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: #0f172a;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .step-box img {
+            width: 100%;
+            height: auto;
+            border-radius: 22px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            object-fit: contain;
+            cursor: zoom-in;
+            transition: transform 0.25s ease;
+        }
+
+        .step-box img:hover {
+            transform: scale(1.02);
+        }
+
         .secret-guess {
             filter: blur(8px);
             transition: filter 0.3s ease;
             user-select: none;
-        }
-        .secret-guess.revealed {
-            filter: blur(0);
-            user-select: auto;
+            background: rgba(255,255,255,0.9);
+            padding: 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(148,163,184,0.18);
         }
 
-        /* 💡 [수정] 정답 확인 버튼 - 반짝이는 그라데이션 및 Shimmer 애니메이션 스타일 */
+        .secret-guess.revealed {
+            filter: blur(0);
+        }
+
         .btn-reveal {
             position: relative;
-            overflow: hidden; /* 반짝이는 빛이 버튼 밖으로 나가지 않도록 설정 */
-            background: linear-gradient(135deg, #34495e, #2c3e50, #8e44ad, #34495e);
-            background-size: 300% 300%; /* 그라데이션 이동을 위한 배경 확대 */
+            overflow: hidden;
+            background: linear-gradient(135deg, #4338ca, #9333ea);
             color: white;
-            padding: 12px 20px;
+            padding: 14px 18px;
             border: none;
-            border-radius: 10px;
-            font-size: 18px;
+            border-radius: 18px;
+            font-size: 1rem;
             cursor: pointer;
-            font-weight: bold;
-            margin-top: 10px;
+            font-weight: 800;
             width: 100%;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-            
-            /* 은은하게 색상이 변하는 애니메이션 구동 */
+            box-shadow: 0 16px 40px rgba(67, 56, 202, 0.18);
             animation: gradientShift 4s ease infinite;
         }
 
-        /* 마우스를 올리거나 TV 앞에서 포커스될 때 반응 */
         .btn-reveal:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(142, 68, 173, 0.4);
         }
 
-        /* 💡 흰색 빛줄기가 대각선으로 빠르게 번쩍이며 지나가는 효과 제거/추가용 가상 요소 */
-        .btn-reveal::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -60%;
-            width: 30%;
-            height: 200%;
-            background: linear-gradient(
-                to right, 
-                rgba(255, 255, 255, 0) 0%, 
-                rgba(255, 255, 255, 0.6) 50%, 
-                rgba(255, 255, 255, 0) 100%
-            );
-            transform: rotate(30deg);
-            /* 1.5초 간격으로 무한히 반짝이는 빛줄기 이동 */
-            animation: shimmerEffect 1.5s infinite ease-in-out;
+        .action-buttons {
+            text-align: center;
+            margin-top: 28px;
+            padding-top: 24px;
+            border-top: 1px dashed rgba(148,163,184,0.3);
         }
 
-        /* 1. 배경 그라데이션 색상 전환 키프레임 */
+        .action-buttons span {
+            display: block;
+            font-size: 1.1rem;
+            margin-bottom: 18px;
+            color: #334155;
+        }
+
+        .btn-correct,
+        .btn-wrong {
+            border: none;
+            border-radius: 18px;
+            padding: 16px 30px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
+        }
+
+        .btn-correct { background: #16a34a; color: white; }
+        .btn-wrong { background: #dc2626; color: white; }
+
+        .btn-correct:hover,
+        .btn-wrong:hover {
+            transform: translateY(-2px);
+        }
+
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            inset: 0;
+            background-color: rgba(15, 23, 42, 0.76);
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .image-modal-content {
+            width: min(95vw, 900px);
+            max-height: 90vh;
+            border-radius: 24px;
+            border: 4px solid white;
+            object-fit: contain;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3);
+            background: white;
+        }
+
         @keyframes gradientShift {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
 
-        /* 2. 대각선 빛 번쩍임 키프레임 */
-        @keyframes shimmerEffect {
-            0% { left: -60%; }
-            100% { left: 140%; }
+        .password-card,
+        .dashboard-content {
+            max-width: 1080px;
+            margin: 0 auto;
         }
 
-        /* 채점 버튼 영역 대형화 */
-        .action-buttons { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px dashed #dee2e6; }
-        .action-buttons span { font-size: 1.8em; display: block; margin-bottom: 15px; }
-        .btn-correct { background: #2ecc71; color: white; padding: 15px 40px; border: none; border-radius: 10px; font-size: 24px; cursor: pointer; font-weight: bold; margin-right: 20px; }
-        .btn-wrong { background: #e74c3c; color: white; padding: 15px 40px; border: none; border-radius: 10px; font-size: 24px; cursor: pointer; font-weight: bold; }
+        .password-card {
+            background: var(--surface);
+            border-radius: 32px;
+            padding: 36px 30px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+            border: 1px solid rgba(148,163,184,0.18);
+            text-align: center;
+        }
 
-        /* 💡 [추가] 그림 클릭 유도 및 대형 팝업 모달 스타일 */
-        .image-modal {
-            display: none;
-            position: fixed;
-            z-index: 9999; /* 최상단 배치 */
-            left: 0;
-            top: 0;
+        .password-card h2 {
+            margin-bottom: 8px;
+        }
+
+        .password-card p {
+            margin-bottom: 22px;
+            color: var(--muted);
+        }
+
+        .password-card input {
             width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.85); /* 어두운 반투명 배경 */
+            max-width: 360px;
+            padding: 18px 20px;
+            font-size: 1rem;
+            border-radius: 18px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            outline: none;
+            margin-bottom: 20px;
+        }
+
+        .password-card input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.12);
+        }
+
+        .password-card button {
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            cursor: zoom-out;
+            width: min(100%, 360px);
+            padding: 16px 26px;
+            background: #22c55e;
+            color: white;
+            font-size: 1rem;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 800;
+            box-shadow: 0 16px 36px rgba(34, 197, 94, 0.24);
         }
 
-        /* 모달 내부 초대형 이미지 */
-        .image-modal-content {
-            max-width: 90%;
-            max-height: 90%;
-            object-fit: contain;
-            border: 5px solid white;
-            border-radius: 15px;
-            background-color: white;
-            animation: zoomEffect 0.2s ease-out;
-        }
+        @media (max-width: 900px) {
+            .dashboard-controls,
+            .password-card {
+                padding: 24px;
+            }
 
-        @keyframes zoomEffect {
-            from { transform: scale(0.7); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
+            .control-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .step-box {
+                flex: 1 1 100%;
+            }
+
+            .student-grid {
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            }
         }
     </style>
 </head>
@@ -278,12 +516,73 @@
 
         // 💡 현재 입력창의 단어 배열을 안전하게 파싱하여 가져오는 헬퍼 함수
         function getSelectedTopics() {
-            const inputVal = document.getElementById('custom-topics-input').value;
+            const topicInput = document.getElementById('custom-topics-input');
+            const inputVal = topicInput ? topicInput.value : '';
             if (!inputVal.trim()) return defaultTopics;
             
             // 쉼표로 분리 후 앞뒤 공백 제거, 빈 단어는 필터링
             const parsed = inputVal.split(',').map(t => t.trim()).filter(t => t.length > 0);
             return parsed.length > 0 ? parsed : defaultTopics;
+        }
+
+        const FIRESTORE_BATCH_LIMIT = 400;
+
+        async function commitOperationsInBatches(operations) {
+            while (operations.length) {
+                const batch = writeBatch(db);
+                const chunk = operations.splice(0, FIRESTORE_BATCH_LIMIT);
+                chunk.forEach(op => {
+                    if (op.type === 'set') {
+                        batch.set(op.ref, op.data, op.options || {});
+                    } else if (op.type === 'update') {
+                        batch.update(op.ref, op.data);
+                    } else if (op.type === 'delete') {
+                        batch.delete(op.ref);
+                    }
+                });
+                await batch.commit();
+            }
+        }
+
+        async function deleteCollectionDocuments(collectionRef) {
+            const refs = [];
+            const snapshot = await getDocs(collectionRef);
+            snapshot.forEach(docSnap => refs.push(doc(db, collectionRef.path, docSnap.id)));
+            while (refs.length) {
+                const batch = writeBatch(db);
+                const chunk = refs.splice(0, FIRESTORE_BATCH_LIMIT);
+                chunk.forEach(ref => batch.delete(ref));
+                await batch.commit();
+            }
+        }
+
+        async function waitForPreviousStepData(step, timeoutMs = 5000) {
+            const requiredFieldMap = {
+                2: 'draw1',
+                3: 'guess1',
+                4: 'draw2',
+                5: 'guess2',
+                6: 'draw3'
+            };
+            const requiredField = requiredFieldMap[step];
+            if (!requiredField) return true;
+
+            const deadline = Date.now() + timeoutMs;
+            while (Date.now() < deadline) {
+                const snapshot = await getDocs(collection(db, 'relays'));
+                let allReady = true;
+                snapshot.forEach(docSnap => {
+                    const value = docSnap.data()?.turn_data?.[requiredField];
+                    if (!value || String(value).trim() === '') {
+                        allReady = false;
+                    }
+                });
+                if (allReady) return true;
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            console.warn(`데이터 준비 타임아웃: ${requiredField}가 아직 모두 준비되지 않았습니다.`);
+            return false;
         }
 
         // 💡 [추가] 버튼 클릭 시 입력창(textarea)의 텍스트를 변경하는 매핑 함수
@@ -326,37 +625,15 @@
 
             try {
                 // 💡 Firestore v9 필수 함수들을 안전하게 추가 임포트합니다.
-                const { collection, getDocs, doc, writeBatch } = await import("https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js");
+                const { collection, getDocs, doc } = await import("https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js");
                 
-                // 싱글 배치(Batch) 객체 생성
-                const batch = writeBatch(db);
-                let deleteCount = 0;
+                const activeUsersRef = collection(db, "active_users");
+                const relaysRef = collection(db, "relays");
+                const scoresRef = collection(db, "user_scores");
 
-                // 1. active_users (활성 사용자) 컬렉션 전체 삭제 준비
-                const usersSnapshot = await getDocs(collection(db, "active_users"));
-                usersSnapshot.forEach(docSnap => {
-                    batch.delete(doc(db, "active_users", docSnap.id));
-                    deleteCount++;
-                });
-                
-                // 2. relays (릴레이 게임 기록) 컬렉션 전체 삭제 준비
-                const relaysSnapshot = await getDocs(collection(db, "relays"));
-                relaysSnapshot.forEach(docSnap => {
-                    batch.delete(doc(db, "relays", docSnap.id));
-                    deleteCount++;
-                });
-                
-                // 3. user_scores (개인 누적 점수) 컬렉션 전체 삭제 준비
-                const scoresSnapshot = await getDocs(collection(db, "user_scores"));
-                scoresSnapshot.forEach(docSnap => {
-                    batch.delete(doc(db, "user_scores", docSnap.id));
-                    deleteCount++;
-                });
-
-                // 💡 삭제할 데이터가 있을 때만 커밋을 수행합니다 (빈 배치 커밋 에러 방지)
-                if (deleteCount > 0) {
-                    await batch.commit();
-                }
+                await deleteCollectionDocuments(activeUsersRef);
+                await deleteCollectionDocuments(relaysRef);
+                await deleteCollectionDocuments(scoresRef);
                 
                 // 4. 교사 화면 UI 상태 초기화
                 currentRoundCount = 1;
@@ -419,7 +696,7 @@
             // 💡 [수정] 입력창에서 제시어 풀 가져오기
             const currentPool = getSelectedTopics();
             
-            const batch = writeBatch(db);
+            const operations = [];
 
             // 학생 수만큼 팀 생성 (라운드 로빈 방식)
             // 각 학생이 1번, 2번, 3번, 4번을 정확히 한 번씩 맡음
@@ -430,23 +707,31 @@
                 let player4 = shuffled[(i + 3) % shuffled.length];
 
                 const teamRef = doc(collection(db, "relays")); 
-                batch.set(teamRef, {
-                    players: [player1, player2, player3, player4], 
-                    topic: currentPool[Math.floor(Math.random() * currentPool.length)],
-                    current_step: 1, 
-                    max_step: max_step, // 최대 단계 저장
-                    hints_used: 0,
-                    turn_data: { draw1: "", guess1: "", draw2: "", guess2: "", draw3: "", guess3: "" },
-                    final_score: null 
+                operations.push({
+                    type: 'set',
+                    ref: teamRef,
+                    data: {
+                        players: [player1, player2, player3, player4], 
+                        topic: currentPool[Math.floor(Math.random() * currentPool.length)],
+                        current_step: 1, 
+                        max_step: max_step, // 최대 단계 저장
+                        hints_used: 0,
+                        turn_data: { draw1: "", guess1: "", draw2: "", guess2: "", draw3: "", guess3: "" },
+                        final_score: null 
+                    }
                 });
             }
 
             // 모든 대기 중인 사용자의 상태를 "playing"으로 변경
             waitingUsers.forEach(user => {
-                batch.update(doc(db, "active_users", user.id), { status: "playing" });
+                operations.push({
+                    type: 'update',
+                    ref: doc(db, "active_users", user.id),
+                    data: { status: "playing" }
+                });
             });
 
-            await batch.commit(); 
+            await commitOperationsInBatches(operations);
             console.log("✅ 게임 시작 완료!");
             
             // ✅ game_state 문서 생성 (단계별 타이머 자동 진행)
@@ -470,7 +755,10 @@
                 });
 
                 if (step < maxStep) {
-                    setTimeout(() => runStepTimer(step + 1, maxStep), totalDuration);
+                    setTimeout(async () => {
+                        await waitForPreviousStepData(step + 1);
+                        runStepTimer(step + 1, maxStep);
+                    }, totalDuration);
                 } else {
                     setTimeout(async () => {
                         // 게임이 끝났을 때도 라운드 유지 정보 전송
@@ -496,19 +784,14 @@
                 currentRoundCount++;
                 document.getElementById('round-display').innerText = `🎮 제 ${currentRoundCount}라운드 진행 중`;
 
-                const batch = writeBatch(db);
+                const deleteRelaysRef = collection(db, "relays");
+                await deleteCollectionDocuments(deleteRelaysRef);
 
-                // 1. 이전 판의 릴레이 기록만 컬렉션에서 모두 삭제
-                const relaysSnapshot = await getDocs(collection(db, "relays"));
-                relaysSnapshot.forEach((docSnap) => {
-                    batch.delete(doc(db, "relays", docSnap.id));
-                });
-
-                // 2. 현재 접속 중인 모든 사용자 상태를 다시 "playing"으로 통일
-                activeUsersData.forEach(user => {
-                    batch.update(doc(db, "active_users", user.id), { status: "playing" });
-                });
-                await batch.commit();
+                const userUpdates = activeUsersData.map(user => ({
+                    ref: doc(db, "active_users", user.id),
+                    data: { status: "playing" }
+                }));
+                await commitOperationsInBatches(userUpdates.map(update => ({ type: 'update', ref: update.ref, data: update.data })));
 
                 // 3. 현재 접속 및 플레이 중인 학생 명단 추출 후 랜덤 셔플
                 let students = activeUsersData.map(user => user.name);
@@ -518,7 +801,7 @@
                 // 💡 [수정] 입력창에서 제시어 풀 가져오기
                 const currentPoolRestart = getSelectedTopics();
 
-                const newGameBatch = writeBatch(db);
+                const newOperations = [];
                 // 라운드 로빈 방식으로 신규 팀 및 랜덤 주제어 배정
                 for (let i = 0; i < shuffled.length; i++) {
                     let player1 = shuffled[i];
@@ -527,17 +810,21 @@
                     let player4 = shuffled[(i + 3) % shuffled.length];
 
                     const teamRef = doc(collection(db, "relays")); 
-                    newGameBatch.set(teamRef, {
-                        players: [player1, player2, player3, player4], 
-                        topic: currentPoolRestart[Math.floor(Math.random() * currentPoolRestart.length)],
-                        current_step: 1, 
-                        max_step: max_step,
-                        hints_used: 0,
-                        turn_data: { draw1: "", guess1: "", draw2: "", guess2: "", draw3: "", guess3: "" },
-                        final_score: null 
+                    newOperations.push({
+                        type: 'set',
+                        ref: teamRef,
+                        data: {
+                            players: [player1, player2, player3, player4], 
+                            topic: currentPoolRestart[Math.floor(Math.random() * currentPoolRestart.length)],
+                            current_step: 1, 
+                            max_step: max_step,
+                            hints_used: 0,
+                            turn_data: { draw1: "", guess1: "", draw2: "", guess2: "", draw3: "", guess3: "" },
+                            final_score: null 
+                        }
                     });
                 }
-                await newGameBatch.commit();
+                await commitOperationsInBatches(newOperations);
 
                 // 4. 교사용 결과 뷰 초기화 및 화면 전환
                 document.getElementById('results-view').innerHTML = '';
@@ -563,7 +850,10 @@
                     });
 
                     if (step < maxStep) {
-                        setTimeout(() => runStepTimer(step + 1, maxStep), totalDuration);
+                        setTimeout(async () => {
+                            await waitForPreviousStepData(step + 1);
+                            runStepTimer(step + 1, maxStep);
+                        }, totalDuration);
                     } else {
                         setTimeout(async () => {
                             // 게임이 끝났을 때도 라운드 유지 정보 전송
@@ -588,6 +878,12 @@
         function renderTeamCard(team, container, rank) {
             const teamId = team.id;
             const maxStep = team.max_step || 6;
+            const players = Array.isArray(team.players) ? team.players : ['대기', '대기', '대기', '대기'];
+            const player1 = players[0] || '대기';
+            const player2 = players[1] || '대기';
+            const player3 = players[2] || '대기';
+            const player4 = players[3] || '대기';
+            const topic = team.topic || '제시어 없음';
             
             const turnData = team.turn_data || {};
             const draw1 = turnData.draw1 || "";
@@ -597,25 +893,26 @@
             const draw3 = turnData.draw3 || "";
             const guess3 = turnData.guess3 || "대기 중...";
             
-            let statusBadge = team.current_step === maxStep + 1 ? '✅ 완료' : `🏃 진행중 (현재 ${team.current_step}단계)`;
-            let expectedScore = Math.max(0, 50 - (team.hints_used * 10));
-            let scoreText = team.final_score !== null ? `확정 점수: ${team.final_score}점` : `예상 점수: ${expectedScore}점 (힌트 ${team.hints_used}회 사용)`;
+            let currentStep = Number(team.current_step) || 0;
+            let statusBadge = currentStep === maxStep + 1 ? '✅ 완료' : `🏃 진행중 (현재 ${currentStep}단계)`;
+            let expectedScore = Math.max(0, 50 - ((team.hints_used || 0) * 10));
+            let scoreText = team.final_score != null ? `확정 점수: ${team.final_score}점` : `예상 점수: ${expectedScore}점 (힌트 ${team.hints_used || 0}회 사용)`;
 
             // 💡 [레이아웃 개역] 추측 카드가 하단에 따로 분리되지 않고, 다음 그림 박스의 상단으로 결합됩니다.
             let stepsHTML = '';
             stepsHTML += `
                 <div class="step-box">
                     <div class="step-title">1. 원래 제시어</div>
-                    <div class="step-content-large" style="color:#4a90e2;">🎯 ${team.topic}</div>
+                    <div class="step-content-large" style="color:#4a90e2;">🎯 ${topic}</div>
                 </div>
                 <div class="step-box">
-                    <div class="step-title">2. ${team.players[0]}의 그림</div>
+                    <div class="step-title">2. ${player1}의 그림</div>
                     <div style="margin-top:auto;">
                         ${draw1 ? `<img src="${draw1}" onclick="window.openImageModal('${draw1}')">` : '아직 그리는 중...'}
                     </div>
                 </div>
                 <div class="step-box">
-                    <div class="step-title">3~4. ${team.players[1]}의 추측 및 그림</div>
+                    <div class="step-title">3~4. ${player2}의 추측 및 그림</div>
                     <div class="step-content-small">✏️ 추측: ${guess1}</div>
                     <div style="margin-top:auto;">
                         ${draw2 ? `<img src="${draw2}" onclick="window.openImageModal('${draw2}')">` : '아직 그리는 중...'}
@@ -626,14 +923,14 @@
             if(maxStep >= 6) {
                 stepsHTML += `
                     <div class="step-box">
-                        <div class="step-title">5~6. ${team.players[2]}의 추측 및 그림</div>
+                        <div class="step-title">5~6. ${player3}의 추측 및 그림</div>
                         <div class="step-content-small">✏️ 추측: ${guess2}</div>
                         <div style="margin-top:auto;">
                             ${draw3 ? `<img src="${draw3}" onclick="window.openImageModal('${draw3}')">` : '아직 그리는 중...'}
                         </div>
                     </div>
                     <div class="step-box" id="final-box-${teamId}">
-                        <div class="step-title">7. ${team.players[3]}의 최종 정답</div>
+                        <div class="step-title">7. ${player4}의 최종 정답</div>
                         <button class="btn-reveal" id="reveal-btn-${teamId}" onclick="window.revealFinalGuess('${teamId}')">👁️ 정답 확인</button>
                         <div class="step-content-large secret-guess" id="final-guess-${teamId}">🏁 ${guess3}</div>
                     </div>
@@ -643,7 +940,7 @@
             container.innerHTML += `
                 <div class="result-card" id="card-${teamId}">
                     <div class="result-header">
-                        🏆 ${rank}위 팀 | 순서: ${team.players.join(' ➔ ')}
+                        🏆 ${rank}위 팀 | 순서: ${players.join(' ➔ ')}
                         <div style="float: right; color: ${team.final_score !== null ? '#2ecc71' : '#e67e22'}">${statusBadge} | ${scoreText}</div>
                     </div>
                     
@@ -651,7 +948,7 @@
                         ${stepsHTML}
                     </div>
 
-                    ${team.current_step === maxStep + 1 && team.final_score === null ? `
+                    ${team.current_step === maxStep + 1 && team.final_score == null ? `
                     <div class="action-buttons" id="actions-${teamId}">
                         <span>📢 최종 정답이 원래 제시어와 일치하나요?</span>
                         <button class="btn-correct" onclick="gradeTeam('${teamId}', ${team.hints_used})">⭕ 정답 인정! (${expectedScore}점)</button>
@@ -706,8 +1003,8 @@
             }
 
             // 1. 채점이 필요한 팀과 완료된 팀 분리
-            const pendingTeams = teams.filter(t => t.final_score === null);
-            const completedTeams = teams.filter(t => t.final_score !== null);
+            const pendingTeams = teams.filter(t => t.final_score == null);
+            const completedTeams = teams.filter(t => t.final_score != null);
 
             // 2. 완료된 팀만 점수 순 정렬 (높은 순)
             completedTeams.sort((a, b) => (b.final_score || 0) - (a.final_score || 0));
@@ -774,15 +1071,14 @@
                     const teamSnap = await getDoc(teamRef);
                     if (teamSnap.exists()) {
                         const teamData = teamSnap.data();
-                        const batch = writeBatch(db);
-                        teamData.players.forEach(playerName => {
-                            const userScoreRef = doc(db, "user_scores", playerName);
-                            batch.set(userScoreRef, { 
-                                name: playerName, 
-                                score: increment(finalCalculatedScore) 
-                            }, { merge: true });
-                        });
-                        await batch.commit();
+                        const teamPlayers = Array.isArray(teamData.players) ? teamData.players : [];
+                        const scoreUpdates = teamPlayers.map(playerName => ({
+                            type: 'set',
+                            ref: doc(db, "user_scores", playerName),
+                            data: { name: playerName, score: increment(finalCalculatedScore) },
+                            options: { merge: true }
+                        }));
+                        await commitOperationsInBatches(scoreUpdates);
                     }
 
                     alert("점수 및 개인별 누적 점수가 확정되었습니다!");
