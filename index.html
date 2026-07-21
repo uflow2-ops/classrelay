@@ -170,7 +170,8 @@
             });
         }
         
-        function autoSubmit() {
+        // ⏱️ 자동 제출 함수
+        async function autoSubmit() {
             if(submittedThisRound) return;
             submittedThisRound = true;
             
@@ -186,7 +187,7 @@
                 if(myCurrentStep === 1) updateData = { "turn_data.draw1": dataUrl };
                 else if(myCurrentStep === 3) updateData = { "turn_data.draw2": dataUrl };
                 else if(myCurrentStep === 5) updateData = { "turn_data.draw3": dataUrl };
-                updateDoc(teamRef, updateData);
+                await updateDoc(teamRef, updateData); // 👈 await 추가로 Firestore 업로드 완료 대기
             } else {
                 const guess = document.getElementById('guess-input').value || '(시간초과)';
                 const teamRef = doc(db, "relays", myTeamId);
@@ -194,7 +195,7 @@
                 if(myCurrentStep === 2) updateData = { "turn_data.guess1": guess };
                 else if(myCurrentStep === 4) updateData = { "turn_data.guess2": guess };
                 else if(myCurrentStep === 6) updateData = { "turn_data.guess3": guess };
-                updateDoc(teamRef, updateData);
+                await updateDoc(teamRef, updateData); // 👈 await 추가
             }
             
             document.getElementById('submitted-badge').style.display = 'block';
@@ -270,6 +271,11 @@
                             document.getElementById('hint-btn-draw').style.display = 'none';
                             showDrawUI();
                         } else if(currentStep === 2) {
+                            // 💡 draw1 데이터가 아직 파이어베이스에서 도달하지 않았다면 도착할 때까지 기다립니다.
+                            if (!teamData.turn_data || !teamData.turn_data.draw1) {
+                                console.log("⏳ 1번 학생의 그림 데이터를 불러오는 중입니다...");
+                                return; 
+                            }
                             document.getElementById('received-drawing').src = teamData.turn_data.draw1;
                             showGuessUI();
                         } else if(currentStep === 3) {
@@ -279,6 +285,11 @@
                             document.getElementById('hint-display').style.display = 'none';
                             showDrawUI();
                         } else if(currentStep === 4) {
+                            // 💡 draw2 데이터 수신 확인
+                            if (!teamData.turn_data || !teamData.turn_data.draw2) {
+                                console.log("⏳ 2번 학생의 그림 데이터를 불러오는 중입니다...");
+                                return; 
+                            }
                             document.getElementById('received-drawing').src = teamData.turn_data.draw2;
                             showGuessUI();
                         } else if(currentStep === 5) {
@@ -288,6 +299,11 @@
                             document.getElementById('hint-display').style.display = 'none';
                             showDrawUI();
                         } else if(currentStep === 6) {
+                            // 💡 draw3 데이터 수신 확인
+                            if (!teamData.turn_data || !teamData.turn_data.draw3) {
+                                console.log("⏳ 3번 학생의 그림 데이터를 불러오는 중입니다...");
+                                return; 
+                            }
                             document.getElementById('received-drawing').src = teamData.turn_data.draw3;
                             showGuessUI();
                         } else if(currentStep > maxStep) {

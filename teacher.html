@@ -454,7 +454,12 @@
             
             // 단계별 타이머 함수 (짝수: 30초, 홀수: 60초)
             async function runStepTimer(step, maxStep) {
-                let duration = (step % 2 === 0) ? 30000 : 60000; // 짝수는 30초, 홀수는 60초
+                // 기본 제한 시간 (그리기 60초 / 추측 30초)
+                let baseDuration = (step % 2 === 0) ? 30000 : 60000;
+                
+                // 💡 그림 제출 직후(홀수 단계 완료 후)에는 DB 저장 및 동기화를 위해 1.5초의 버퍼 시간을 추가합니다.
+                let bufferTime = (step % 2 === 1) ? 1500 : 0; 
+                let totalDuration = baseDuration + bufferTime;
                 
                 // 💡 game_state 파이어베이스 문서에 current_round 변수도 함께 저장하여 학생에게 전송합니다.
                 await setDoc(doc(db, "game_state", "current"), {
@@ -465,7 +470,7 @@
                 });
 
                 if (step < maxStep) {
-                    setTimeout(() => runStepTimer(step + 1, maxStep), duration);
+                    setTimeout(() => runStepTimer(step + 1, maxStep), totalDuration);
                 } else {
                     setTimeout(async () => {
                         // 게임이 끝났을 때도 라운드 유지 정보 전송
@@ -473,7 +478,7 @@
                             status: "finished",
                             current_round: currentRoundCount 
                         });
-                    }, duration);
+                    }, totalDuration);
                 }
             }
             
@@ -542,7 +547,12 @@
                 // 5. 단계별 자동 타이머 루프 구동 (1단계부터 다시 시작)
                 let currentStep = 1;
                 async function runStepTimer(step, maxStep) {
-                    let duration = (step % 2 === 0) ? 30000 : 60000;
+                    // 기본 제한 시간 (그리기 60초 / 추측 30초)
+                    let baseDuration = (step % 2 === 0) ? 30000 : 60000;
+                    
+                    // 💡 그림 제출 직후(홀수 단계 완료 후)에는 DB 저장 및 동기화를 위해 1.5초의 버퍼 시간을 추가합니다.
+                    let bufferTime = (step % 2 === 1) ? 1500 : 0; 
+                    let totalDuration = baseDuration + bufferTime;
                     
                     // 💡 game_state 파이어베이스 문서에 current_round 변수도 함께 저장하여 학생에게 전송합니다.
                     await setDoc(doc(db, "game_state", "current"), {
@@ -553,7 +563,7 @@
                     });
 
                     if (step < maxStep) {
-                        setTimeout(() => runStepTimer(step + 1, maxStep), duration);
+                        setTimeout(() => runStepTimer(step + 1, maxStep), totalDuration);
                     } else {
                         setTimeout(async () => {
                             // 게임이 끝났을 때도 라운드 유지 정보 전송
@@ -561,7 +571,7 @@
                                 status: "finished",
                                 current_round: currentRoundCount 
                             });
-                        }, duration);
+                        }, totalDuration);
                     }
                 }
                 
