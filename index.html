@@ -547,21 +547,29 @@
                         document.getElementById('timer-info').innerText = TOTAL_TIME === 30 ? '30초가 지나면 자동으로 제출됩니다' : '60초가 지나면 자동으로 제출됩니다';
                         document.getElementById('timer-info-guess').innerText = '30초가 지나면 자동으로 제출됩니다';
                         
-                        document.getElementById('hint-btn-draw').style.display = (currentStep === 3 || currentStep === 5) ? 'inline-block' : 'none';
-                        document.getElementById('hint-btn-guess').style.display = (currentStep === 6) ? 'inline-block' : 'none';
+                        const hintBtnDraw = document.getElementById('hint-btn-draw');
+                        const hintBtnGuess = document.getElementById('hint-btn-guess');
+                        if (hintBtnDraw) hintBtnDraw.style.display = (currentStep === 3 || currentStep === 5) ? 'inline-block' : 'none';
+                        if (hintBtnGuess) hintBtnGuess.style.display = (currentStep === 6) ? 'inline-block' : 'none';
                         // 💡 [핵심 해결책] 힌트 버튼 활성화 상태 초기화
-                        document.getElementById('hint-btn-draw').disabled = false;
-                        document.getElementById('hint-btn-guess').disabled = false;
-                        document.getElementById('hint-btn-draw').style.opacity = '1';
-                        document.getElementById('hint-btn-guess').style.opacity = '1';
+                        if (hintBtnDraw) {
+                            hintBtnDraw.disabled = false;
+                            hintBtnDraw.style.opacity = '1';
+                        }
+                        if (hintBtnGuess) {
+                            hintBtnGuess.disabled = false;
+                            hintBtnGuess.style.opacity = '1';
+                        }
                         
-                        document.getElementById('hint-display').style.display = 'none';
+                        const hintDisplay = document.getElementById('hint-display');
+                        if (hintDisplay) hintDisplay.style.display = 'none';
                         
                         let renderedNow = false;
                         if(currentStep === 1) {
                             document.getElementById('welcome-msg').innerText = `🎯 제시어: ${teamData.topic}`;
-                            document.getElementById('hint-display').style.display = 'none';
-                            document.getElementById('hint-btn-draw').style.display = 'none';
+                            if (hintDisplay) hintDisplay.style.display = 'none';
+                            const hintBtnDraw = document.getElementById('hint-btn-draw');
+                            if (hintBtnDraw) hintBtnDraw.style.display = 'none';
                             showDrawUI();
                             renderedNow = true;
                         } else if(currentStep === 2) {
@@ -576,7 +584,7 @@
                         } else if(currentStep === 3) {
                             const myPreviousGuess = teamData.turn_data.guess1 || "(미입력)";
                             document.getElementById('welcome-msg').innerText = `🎨 제시어: [ ${myPreviousGuess} ] - 그림으로 표현해주세요!`;
-                            document.getElementById('hint-display').style.display = 'none';
+                            if (hintDisplay) hintDisplay.style.display = 'none';
                             showDrawUI();
                             renderedNow = true;
                         } else if(currentStep === 4) {
@@ -590,7 +598,7 @@
                         } else if(currentStep === 5) {
                             const myPreviousGuess = teamData.turn_data.guess2 || "(미입력)";
                             document.getElementById('welcome-msg').innerText = `🎨 제시어: [ ${myPreviousGuess} ] - 그림으로 표현해주세요!`;
-                            document.getElementById('hint-display').style.display = 'none';
+                            if (hintDisplay) hintDisplay.style.display = 'none';
                             showDrawUI();
                             renderedNow = true;
                         } else if(currentStep === 6) {
