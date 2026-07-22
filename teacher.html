@@ -556,6 +556,16 @@
             }
         }
 
+        async function deleteGameState() {
+            try {
+                const gameStateDoc = doc(db, "game_state", "current");
+                await deleteDoc(gameStateDoc);
+                console.log("✅ game_state/current 문서 삭제 완료");
+            } catch (e) {
+                console.warn("game_state 삭제 중 오류 (문서가 없을 수 있음):", e);
+            }
+        }
+
         async function waitForPreviousStepData(step, timeoutMs = 5000) {
             const requiredFieldMap = {
                 2: 'draw1',
@@ -634,6 +644,9 @@
                 await deleteCollectionDocuments(activeUsersRef);
                 await deleteCollectionDocuments(relaysRef);
                 await deleteCollectionDocuments(scoresRef);
+                
+                // 💡 [추가] game_state 문서도 삭제하여 이전 게임 상태 초기화
+                await deleteGameState();
                 
                 // 4. 교사 화면 UI 상태 초기화
                 currentRoundCount = 1;
@@ -734,10 +747,12 @@
             await commitOperationsInBatches(operations);
             console.log("✅ 게임 시작 완료!");
             
+            let currentStep = 1;
+            
             // ✅ game_state 문서 미리 생성 (학생이 게임 시작을 즉시 감지하도록)
             await setDoc(doc(db, "game_state", "current"), {
                 status: "playing",
-                current_step: 1,
+                current_step: currentStep,
                 max_step: max_step,
                 current_round: currentRoundCount
             });
