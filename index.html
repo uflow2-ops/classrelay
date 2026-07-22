@@ -532,12 +532,9 @@
                         myTeamId = docSnap.id;
                         myCurrentStep = currentStep;
                         
-                        // 이번 단계를 이미 화면에 그렸다면, 특별한 데이터 변경이 없으면 재표시를 막습니다.
+                        // 이번 단계를 이미 화면에 그렸다면 재표시를 막습니다. (입력값 보존)
                         if (lastRenderedStep === currentStep) {
-                            const noMoreDataNeeded = currentStep === 1 || currentStep === 3 || currentStep === 5;
-                            if (noMoreDataNeeded) {
-                                return;
-                            }
+                            return;
                         }
 
                         document.querySelectorAll('.submitted-badge').forEach(el => el.style.display = 'none');
@@ -828,7 +825,7 @@
             }
         }
         function showDrawUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('waiting-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'block'; document.getElementById('drawing-canvas').style.pointerEvents = 'auto'; clearCanvas(); initCanvas(); startTimer(); }
-        function showGuessUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('waiting-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'block'; document.getElementById('guess-input').disabled = false; document.getElementById('guess-input').value = ""; document.querySelectorAll('.submitted-badge').forEach(el => el.style.display = 'none'); startTimer(); }
+        function showGuessUI() { stopTimer(); document.getElementById('login-ui').style.display = 'none'; document.getElementById('waiting-ui').style.display = 'none'; document.getElementById('game-ui').style.display = 'none'; document.getElementById('guess-ui').style.display = 'block'; document.getElementById('guess-input').disabled = false; document.querySelectorAll('.submitted-badge').forEach(el => el.style.display = 'none'); startTimer(); }
 
         // 캔버스 세팅
         const canvas = document.getElementById('drawing-canvas');
